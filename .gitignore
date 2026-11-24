@@ -1,4 +1,4 @@
-# 依赖
+﻿# 依赖
 node_modules/
 desktop/node_modules/
 
@@ -31,3 +31,12 @@ tmp-*
 # 内部文档：给本机工作用，不对外
 HANDOFF.md
 DEVLOG.md
+
+# 截图：界面里的预览图可能含成人向内容，不进仓库。要放之前先重截干净的。
+docs/*.png
+!docs/icon-*.png
+publish/img/*.png
+!publish/img/icon.png
+
+# 落地页：部署用，不是源码。图片含界面预览，不进仓库。
+publish/
