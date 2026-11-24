@@ -1,0 +1,19 @@
+{
+  "name": "lora-library",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "洛栈 · LoRA-Vault — 本地 LoRA 管理器：扫描分类、详情、预览图、开放录入接口",
+  "scripts": {
+    "start": "node server.mjs",
+    "import": "node scripts/import-legacy.mjs",
+    "scan": "node scripts/scan.mjs",
+    "cli": "node cli/lora.mjs"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "dependencies": {
+    "undici": "^8.13.1"
+  }
+}

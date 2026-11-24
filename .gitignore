@@ -1,0 +1,31 @@
+﻿# 依赖
+node_modules/
+desktop/node_modules/
+
+# 用户数据：库、预览图、备份、配置（含接口 token，绝对不能进仓库）
+data/
+
+# 打包产物与运行时（安装包走 Release，不进仓库）
+dist/
+desktop/runtime/
+
+# 旧版前端存档
+backup/
+
+# 改代码时留的备份
+*.bak
+*.bak-*
+*.orig
+
+# 日志与临时文件
+*.log
+npm-debug.log*
+*.tmp
+
+# 编辑器
+.vscode/
+.idea/
+
+# 临时测试目录
+tmp/
+tmp-*

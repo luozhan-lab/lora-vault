@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="plate" x1="0.05" y1="0" x2="0.95" y2="1">
+      <stop offset="0" stop-color="#ffddb0"/>
+      <stop offset="0.52" stop-color="#f2b56b"/>
+      <stop offset="1" stop-color="#cd8941"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0.1" y1="0" x2="0.55" y2="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.26"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="232" fill="url(#plate)"/>
+  <rect width="1024" height="1024" rx="232" fill="url(#sheen)"/>
+
+  <path d="M314 200 H462 A36 36 0 0 1 498 236 V628 H730 A36 36 0 0 1 766 664 V772 A36 36 0 0 1 730 808 H314 A36 36 0 0 1 278 772 V236 A36 36 0 0 1 314 200 Z" fill="#0b0e14"/>
+
+  <rect x="6" y="6" width="1012" height="1012" rx="227" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="5"/>
+</svg>

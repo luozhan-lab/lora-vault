@@ -1,0 +1,142 @@
+  <h1>User manual</h1>
+  <p>This manual covers three things: how to set it up the first time, what each page does, and where to look when generation stalls.</p>
+  <hr>
+  <h1>First launch: three steps to your first image</h1>
+  <h2>Step 1 — make sure ComfyUI is connected</h2>
+  <p>Open Settings. Section A shows the ComfyUI status.</p>
+  <ul>
+    <li>"Connected" — skip this step</li>
+    <li>"Not connected" — start ComfyUI yourself first; it turns green once it is up</li>
+    <li>Want to launch it from here? Fill ComfyUI's install folder in section A and press Launch</li>
+  </ul>
+  <p><strong>Nothing will generate until this passes.</strong></p>
+  <h2>Step 2 — check the folders</h2>
+  <p>Still in Settings, scroll to section C:</p>
+  <ul>
+    <li><strong>LoRA folder</strong>: where your <code>.safetensors</code> live. The library and every LoRA picker read from here</li>
+    <li><strong>Model folder</strong>: base models, CLIP, VAE</li>
+    <li><strong>Output folder</strong>: ComfyUI's output directory. The gallery and "Open output folder" both use it</li>
+  </ul>
+  <p>A wrong folder doesn't error. It just shows nothing. If the library is empty, come back and check this.</p>
+  <h2>Step 3 — generate</h2>
+  <ol>
+    <li>Click Library on the left</li>
+    <li>Click a character card (Nahida, say). A gold border means it's selected</li>
+    <li>Click Create in the top right</li>
+    <li>The right panel fills in. When it's done it says "Done · seed …"</li>
+  </ol>
+  <p><strong>Get the first one out, then start tuning.</strong></p>
+  <hr>
+  <h1>Page map</h1>
+  <table class="guide-table">
+    <thead><tr><th>Page</th><th>What it's for</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Library</strong></td><td>Character library. Search, filter by work, previews, details and trigger words</td></tr>
+      <tr><td><strong>Models</strong></td><td>Base models / checkpoints / CLIP / VAE. Set defaults, copy names, delete files</td></tr>
+      <tr><td><strong>Create</strong></td><td>Pick six things: character, scene, outfit, pose, expression, people. Plus quick styles and extra words</td></tr>
+      <tr><td><strong>Expert</strong></td><td>Everything by hand: model, LoRA, prompts, weights, steps, CFG, seed, two-pass</td></tr>
+      <tr><td><strong>Records</strong></td><td>Search past prompts and see what was made and which LoRAs were attached</td></tr>
+      <tr><td><strong>Gallery</strong></td><td>Every image in the output folder and the samples folder. Search, sort, enlarge, multi-select delete</td></tr>
+      <tr><td><strong>Guide</strong></td><td>Beginner tutorial: what a model, a LoRA and a prompt actually are</td></tr>
+      <tr><td><strong>Settings</strong></td><td>ComfyUI, folders, content mode, updates, backups, about</td></tr>
+    </tbody>
+  </table>
+  <hr>
+  <h1>Generating, step by step</h1>
+  <h2>1. Pick a person</h2>
+  <p>Click a character card in the Library. For a random one, hit "Random character" on Create.</p>
+  <p>A gold border means selected; Create then uses that person.</p>
+  <h2>2. Pick scene and clothes</h2>
+  <p>On Create, section 02 has six slots: body, scene, outfit, people, pose, expression.</p>
+  <ul>
+    <li>Leaving one empty means random</li>
+    <li>In a hurry? Use the quick style chips: Daily, Night, Swimsuit, Cafe, Rain…</li>
+    <li>One chip fills all six slots at once</li>
+  </ul>
+  <p><strong>Each slot opens a picker</strong>: search, click a row to tick it, confirm bottom right.</p>
+  <h2>3. Check the negative prompt</h2>
+  <p>Scroll to Negative. A default list is already there (lowres, bad hands, extra fingers, watermark).</p>
+  <p><strong>Don't empty it.</strong> Without it you get broken fingers and text artefacts.</p>
+  <h2>4. Count</h2>
+  <p>Pick 1–4 images, or "random N" (different settings each).</p>
+  <p><strong>Start with one</strong>, check it, then batch.</p>
+  <h2>5. Generate</h2>
+  <p>Press "Generate" (or "Create") bottom right. The right panel shows progress.</p>
+  <p>When finished it reports "Done · seed 1234567". <strong>Write that seed down</strong> — reusing it keeps the person and framing stable.</p>
+  <h2>6. When it's wrong</h2>
+  <p><strong>Change one thing at a time.</strong></p>
+  <ul>
+    <li>Person right, background mush → move the scene word earlier or weight it: <code>(classroom:1.2)</code></li>
+    <li>Hands broken → add <code>bad hands</code>, <code>extra fingers</code> (already in the default negative)</li>
+    <li>Face too pale → a light weight like <code>(blush:1.2)</code></li>
+    <li>Want a variation of the same image → "Same seed", change one word</li>
+  </ul>
+  <h2>7. Where the images are</h2>
+  <p>The output folder is ComfyUI's output. Open <strong>Gallery</strong> inside the app, or "Open folder" for Explorer.</p>
+  <hr>
+  <h1>Using the Expert page</h1>
+  <p>Expert mode ignores the content-mode switch. What you type is what you get.</p>
+  <h2>Model</h2>
+  <p>First field is the base model. After changing it, check whether CLIP/VAE followed; set them manually if not.</p>
+  <h2>LoRA</h2>
+  <p>Character, outfit, style — each is a <strong>click-to-open picker</strong>:</p>
+  <ol>
+    <li>Click the field</li>
+    <li>Type a name, file name or trigger word in the search box</li>
+    <li>Click a row; a ✓ appears</li>
+    <li>Press <strong>OK</strong> bottom right to apply. Cancel leaves it unchanged</li>
+  </ol>
+  <p>The number under it is weight. <strong>Start at 0.7</strong>; add 0.05 if it doesn't look like her, subtract 0.05 if she turns stiff.</p>
+  <p>"+ Add a LoRA slot" attaches another one — <strong>don't go past two</strong>, they pollute each other.</p>
+  <h2>Prompts</h2>
+  <p>Positive and negative are yours to write. Wrap lines freely; separate with commas.</p>
+  <h2>Parameters</h2>
+  <ul>
+    <li><strong>Steps</strong>: start at 28; 30–35 is finer but slower</li>
+    <li><strong>CFG</strong>: around 4. Higher smears, lower scatters</li>
+    <li><strong>seed</strong>: -1 is random. Reuse the previous number for the same image</li>
+    <li><strong>Size</strong>: portrait 832×1216, landscape 1216×832</li>
+  </ul>
+  <h2>Two-pass (optional)</h2>
+  <p>Tick "Pass 1 text→image → pass 2 image→image" to sketch first, then repaint with a second model.</p>
+  <p>Beginners: leave it off.</p>
+  <hr>
+  <h1>Troubleshooting</h1>
+  <h2>ComfyUI always says "not connected"</h2>
+  <ol>
+    <li>Confirm ComfyUI itself is running (open <code>127.0.0.1:8188</code> in a browser)</li>
+    <li>Check the address in Settings section A</li>
+    <li>Still stuck: Settings → Maintenance / API → "Health check" and read which item is red</li>
+  </ol>
+  <h2>Nothing happens after pressing generate</h2>
+  <p>Watch the status bottom left. Red means an error with a reason; yellow means queued. For errors: Settings → Maintenance → Open log.</p>
+  <h2>The person doesn't look like the character</h2>
+  <p>Check in this order:</p>
+  <ol>
+    <li>Is the LoRA weight too low (below 0.7 drifts)?</li>
+    <li>Are the LoRA and the base model the same family (an Anima LoRA on an SDXL model is effectively unused)?</li>
+    <li>Is the trigger word present and correct?</li>
+    <li>Try a different LoRA for the same character</li>
+  </ol>
+  <h2>Hands and text keep breaking</h2>
+  <p>The negative must contain: <code>bad hands, extra fingers, missing fingers, watermark, text</code>.</p>
+  <p>Avoid actions the model is bad at in the positive, like <code>holding hands</code>.</p>
+  <h2>The gallery is empty</h2>
+  <p>The gallery reads two places: the <strong>output folder</strong> and the <strong>samples folder</strong>.</p>
+  <ul>
+    <li>Output empty: nothing generated recently, or the images were moved</li>
+    <li>Samples: where curated images live</li>
+  </ul>
+  <p>Switch the dropdown at the top to check.</p>
+  <h2>Updating</h2>
+  <p>Settings → H "Update": paste the manifest URL and it checks once at startup. With a new version, press "Download &amp; update"; it installs and restarts itself.</p>
+  <h2>Adult content switch</h2>
+  <p>Off by default; only SFW output. To enable: Settings → 0 "Content mode" → read and accept the disclaimer → "Enable adult content".</p>
+  <p>Only then do the adult pools appear on Create. <strong>Expert mode is not affected.</strong></p>
+  <h2>English UI</h2>
+  <p>Click <code>EN</code> in the top right. Switch back with <code>中文</code>.</p>
+  <p>In English: character names, work titles and original LoRA names stay as they are, and the word bank shows the English tags — none of those need translating.</p>
+  <hr>
+  <h1>One reminder</h1>
+  <p><strong>Change one word at a time.</strong></p>
+  <p>Change ten and look once, and you never learn which one mattered. Change one and look once, and after ten rounds you know what every slot does.</p>

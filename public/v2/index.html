@@ -1,0 +1,1218 @@
+<html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>洛栈 · LoRA-Vault</title>
+<link rel="icon" type="image/svg+xml" href="/v2/icon.svg?v=20261124icon">
+<link rel="stylesheet" href="/v2/app.css?v=202611250042">
+</head>
+<body>
+<div id="titlebar" class="titlebar hidden">
+  <div class="tb-brand"><span class="tb-logo">洛</span><span>洛栈 · LoRA-Vault</span></div>
+  <nav class="tb-menus">
+    <button data-menu="file">文件</button>
+    <button data-menu="view">查看</button>
+    <button data-menu="help">帮助</button>
+  </nav>
+  <div class="tb-drag"></div>
+  <div class="tb-controls">
+    <button id="tbMin" title="最小化">—</button>
+    <button id="tbMax" title="最大化">□</button>
+    <button id="tbClose" title="关闭">×</button>
+  </div>
+</div>
+<div id="tbMenuBox" class="tb-menu hidden"></div>
+<div id="r18Gate" class="gate hidden">
+  <div class="gate-card r18-card">
+    <div class="gate-mark">18+ · 成人内容</div>
+    <h1>开启前请确认</h1>
+    <div class="gate-text">
+      <p>开启后，创作页的成人向词池才会放开；不开就只出正常图。专家模式自己写词，不受这个开关影响。</p>
+      <h2>免责协议</h2>
+      <ol>
+        <li><b>年龄</b>：本功能含成人内容，只对已满 18 周岁（或你所在地区的法定成年年龄，取较高者）的用户开放，未满者不得开启。</li>
+        <li><b>虚构</b>：角色、场景、文字均由模型生成，纯属虚构，不对应任何真实人物。</li>
+        <li><b>责任</b>：开启后你输入的词、生成的图、图的保存与传播，责任全部由你承担。软件作者不承担因使用本功能产生的任何直接或间接责任。</li>
+        <li><b>用途</b>：不得用于违法用途，不得用于制作或传播涉及未成年人、非自愿、真实人物肖像的内容。请自行遵守所在地法律和所用平台的规则。</li>
+        <li><b>数据</b>：词和图片都在本机生成、本机保存，不上传。</li>
+        <li><b>关闭</b>：随时可以在设置里关掉，关掉后词池立刻回到正常模式；已经生成的图不会被删除。</li>
+      </ol>
+    </div>
+    <label id="r18AgreeRow"><input id="r18Agree" type="checkbox"> 我已年满 18 周岁，已阅读并同意上面的免责协议</label>
+    <div class="gate-actions">
+      <button id="r18Cancel" class="ghost">取消</button>
+      <button id="r18Enter" class="primary" disabled>开启成人内容</button>
+    </div>
+    <div class="gate-actions hidden" id="r18ReadActions">
+      <button id="r18ReadClose" class="primary">知道了</button>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="rail">
+    <a class="logo" href="/" title="洛栈 · LoRA-Vault">洛</a>
+    <nav class="railnav">
+      <button class="railbtn" data-nav="library"><i>▦</i><span>洛栈</span></button>
+      <button class="railbtn" data-nav="models"><i>▤</i><span>模型</span></button>
+      <button class="railbtn on" data-nav="create"><i>✦</i><span>创作</span></button>
+      <button class="railbtn" data-nav="expert"><i>⌘</i><span>专家</span></button>
+      <button class="railbtn" data-nav="records"><i>≡</i><span>记录</span></button>
+      <button class="railbtn" data-nav="gallery"><i>▥</i><span>图库</span></button>
+      <button class="railbtn" data-nav="guide"><i>?</i><span>教学</span></button>
+      <button class="railbtn" data-nav="manual"><i>ℹ</i><span>说明</span></button>
+      <button class="railbtn" data-nav="settings"><i>⚙</i><span>设置</span></button>
+    </nav>
+    <div class="railfoot">
+      <span id="railDot" class="dot on"></span>
+      <span id="railComfy">在线</span>
+    </div>
+  </aside>
+
+  <div class="workspace">
+    <header class="top">
+      <div class="titles">
+        <h1 id="pageTitle">创作</h1>
+        <p id="pageSub">选一个角色，选一种风格，出一张。</p>
+      </div>
+      <div class="top-actions">
+        <span id="topStatus" class="status on">ComfyUI 在线</span>
+        <button id="topCreate" class="ghost">出图</button>
+        <button id="langBtn" class="ghost" title="Language">EN</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section id="page-models" class="page hidden" data-page="models">
+        <div class="panel">
+          <div class="models-head">
+            <b>模型</b>
+            <span id="modelsSummary" class="hint">读取中…</span>
+            <button id="modelsRefresh" class="ghost">刷新</button>
+          </div>
+          <div id="modelsBody" class="models-body"><div class="skeleton">读取模型…</div></div>
+        </div>
+      </section>
+
+      <section id="page-create" class="page hidden" data-page="create">
+        <div id="setupBanner" class="setup-banner hidden">
+          <div>
+            <b>还没配好</b>
+            <span>自动找 ComfyUI、模型和 LoRA；找不到再去设置里手动选。</span>
+          </div>
+          <button id="autoSetup" class="primary">自动检测</button>
+        </div>
+        <div class="create-grid">
+          <div class="panel controls">
+            <p id="r18Note" class="r18-note hidden">请注意自己的身体。</p>
+            <div class="stephead">
+              <div><span class="num">00</span><h2>模型</h2></div>
+              <div class="char-tools">
+                <span class="hint">先定模型，再定人</span>
+                <button id="setDefaultModel" class="mini">设为默认</button>
+              </div>
+            </div>
+            <button id="modelCardBtn" class="six-card model-card"><span>当前模型</span><b id="moreModel">默认 · SilvermoonMix-Anima29B-Evolved-V2.3.safetensors</b></button>
+            <div class="stephead">
+              <div><span class="num">01</span><h2>角色</h2></div>
+              <div class="char-tools">
+                <input id="charSearch" type="search" placeholder="搜角色 / 作品 / 触发词" autocomplete="off">
+                <button id="charExpand" class="mini">展开</button>
+                <button id="randomChar" class="mini">随机一个</button>
+                <span id="charFamFilter" class="hint"></span>
+              </div>
+            </div>
+            <div id="charRail" class="char-rail"><button class="char rand" data-char="__random__"><div class="pic">✦</div><div class="nm">随机角色</div></button><button class="char " data-char="__none__"><div class="pic">—</div><div class="nm">不挂角色</div></button><button class="char " data-char="角色\绝区零\dracaene-anima.safetensors" title="小挽昼">
+      <div class="pic"><img loading="lazy" src="/media/991/thumb" alt=""></div>
+      <div class="nm"><b>小挽昼</b> ·</div>
+    </button><button class="char " data-char="角色\星穹铁道\sgb-anima-hsr-march7thpreservation-v1.safetensors" title="三月七·存护">
+      <div class="pic"><img loading="lazy" src="/media/610/thumb" alt=""></div>
+      <div class="nm"><b>三月七·存护</b> ·</div>
+    </button><button class="char " data-char="角色\绝区零\belle-anima.safetensors" title="铃">
+      <div class="pic"><img loading="lazy" src="/media/981/thumb" alt=""></div>
+      <div class="nm"><b>铃</b> ·</div>
+    </button><button class="char " data-char="角色\星穹铁道\castorice_anima_v2.safetensors" title="遐蝶">
+      <div class="pic"><img loading="lazy" src="/media/577/thumb" alt=""></div>
+      <div class="nm"><b>遐蝶</b> ·</div>
+    </button><button class="char " data-char="角色\其他角色\AI娘\misc_claude.safetensors" title="Claude娘">
+      <div class="pic"><img loading="lazy" src="/media/412/thumb" alt=""></div>
+      <div class="nm"><b>Claude娘</b> ·</div>
+    </button><button class="char " data-char="角色\星穹铁道\sparkle-anima.safetensors" title="花火（星铁）">
+      <div class="pic"><img loading="lazy" src="/media/620/thumb" alt=""></div>
+      <div class="nm"><b>花火（星铁）</b> ·</div>
+    </button><button class="char " data-char="角色\原神\genshin-3325973.safetensors" title="甘雨">
+      <div class="pic"><img loading="lazy" src="/media/481/thumb" alt=""></div>
+      <div class="nm"><b>甘雨</b> ·</div>
+    </button><button class="char " data-char="角色\碧蓝航线\Z23.safetensors" title="Z23/Z23（碧蓝航线）">
+      <div class="pic"><img loading="lazy" src="/media/803/thumb" alt=""></div>
+      <div class="nm"><b>Z23/Z23（碧蓝航线）</b> ·</div>
+    </button><button class="char " data-char="角色\星穹铁道\yunli-anima.safetensors" title="云璃">
+      <div class="pic"><img loading="lazy" src="/media/624/thumb" alt=""></div>
+      <div class="nm"><b>云璃</b> ·</div>
+    </button><button class="char on" data-char="角色\原神\genshin-3142658.safetensors" title="纳西妲">
+      <div class="pic"><img loading="lazy" src="/media/465/thumb" alt=""></div>
+      <div class="nm"><b>纳西妲</b> ·</div>
+    </button><button class="char " data-char="角色\绝区零\BelleAndWise.safetensors" title="铃与维斯（绝区零）">
+      <div class="pic"><img loading="lazy" src="/media/983/thumb" alt=""></div>
+      <div class="nm"><b>铃与维斯（绝区零）</b> ·</div>
+    </button><button class="char " data-char="角色\绝区零\burnice-white-anima-v1.safetensors" title="柏妮思·怀特">
+      <div class="pic"><img loading="lazy" src="/media/984/thumb" alt=""></div>
+      <div class="nm"><b>柏妮思·怀特</b> ·</div>
+    </button><button class="char " data-char="角色\原神\genshin-3014738.safetensors" title="可莉">
+      <div class="pic"><img loading="lazy" src="/media/444/thumb" alt=""></div>
+      <div class="nm"><b>可莉</b></div>
+    </button><button class="char " data-char="角色\原神\genshin-3016472.safetensors" title="希格雯">
+      <div class="pic"><img loading="lazy" src="/media/454/thumb" alt=""></div>
+      <div class="nm"><b>希格雯</b></div>
+    </button><button class="char " data-char="自己的\汐\xi-lora-v6.safetensors" title="汐 v6（现用）">
+      <div class="pic"><img loading="lazy" src="/media/279/thumb" alt=""></div>
+      <div class="nm"><b>汐 v6（现用）</b></div>
+    </button><button class="char " data-char="角色\星穹铁道\sgb-anima-hsr-firefly-v1.safetensors" title="流萤">
+      <div class="pic"><img loading="lazy" src="/media/604/thumb" alt=""></div>
+      <div class="nm"><b>流萤</b></div>
+    </button><button class="char " data-char="自己的\汐\xi-lora-v7.safetensors" title="汐 v7">
+      <div class="pic"><img loading="lazy" src="/media/280/thumb" alt=""></div>
+      <div class="nm"><b>汐 v7</b></div>
+    </button><button class="char " data-char="角色\星穹铁道\Kafka_(Honkai__Star_Rail)-Honkai_(Series)-anima-v1.safetensors" title="卡芙卡">
+      <div class="pic"><img loading="lazy" src="/media/592/thumb" alt=""></div>
+      <div class="nm"><b>卡芙卡</b></div>
+    </button><button class="char " data-char="角色\其他角色\AI娘\deepseek_whale_girl_maid_anima_lora_clean.safetensors" title="鲸鱼娘（DeepSeek）">
+      <div class="pic"><img loading="lazy" src="/media/411/thumb" alt=""></div>
+      <div class="nm"><b>鲸鱼娘（DeepSeek）</b></div>
+    </button><button class="char " data-char="角色\星穹铁道\robin_normal_v1-000013.safetensors" title="知更鸟">
+      <div class="pic"><img loading="lazy" src="/media/598/thumb" alt=""></div>
+      <div class="nm"><b>知更鸟</b></div>
+    </button><button class="char " data-char="角色\星穹铁道\sgb-anima-hsr-stelle-v1.safetensors" title="开拓者·星">
+      <div class="pic"><img loading="lazy" src="/media/616/thumb" alt=""></div>
+      <div class="nm"><b>开拓者·星</b></div>
+    </button><button class="char " data-char="角色\小林家的龙女仆\kanna-v2.safetensors" title="康娜卡姆依">
+      <div class="pic"><img loading="lazy" src="/media/513/thumb" alt=""></div>
+      <div class="nm"><b>康娜卡姆依</b></div>
+    </button><button class="char " data-char="角色\星穹铁道\tribbie-v1.safetensors" title="缇宝">
+      <div class="pic"><img loading="lazy" src="/media/622/thumb" alt=""></div>
+      <div class="nm"><b>缇宝</b></div>
+    </button><button class="char " data-char="角色\绝区零\vivian-anima.safetensors" title="薇薇安">
+      <div class="pic"><img loading="lazy" src="/media/1027/thumb" alt=""></div>
+      <div class="nm"><b>薇薇安</b></div>
+    </button><button class="char " data-char="角色\绝区零\remielle-anima-v2.safetensors" title="蕾米埃尔·丹">
+      <div class="pic"><img loading="lazy" src="/media/1013/thumb" alt=""></div>
+      <div class="nm"><b>蕾米埃尔·丹</b></div>
+    </button><button class="char " data-char="角色\明日方舟终末地\perlica_anima_v1.safetensors" title="佩丽卡">
+      <div class="pic"><img loading="lazy" src="/media/566/thumb" alt=""></div>
+      <div class="nm"><b>佩丽卡</b></div>
+    </button><button class="char " data-char="角色\绝区零\jane-doe-anima.safetensors" title="简·杜">
+      <div class="pic"><img loading="lazy" src="/media/997/thumb" alt=""></div>
+      <div class="nm"><b>简·杜</b></div>
+    </button><button class="char " data-char="角色\绝区零\roxy-anima-v1.safetensors" title="洛克茜">
+      <div class="pic"><img loading="lazy" src="/media/1015/thumb" alt=""></div>
+      <div class="nm"><b>洛克茜</b></div>
+    </button><button class="char " data-char="角色\其他角色\AI娘\Ani_(Grok)_anima-base-V1.0_v1.safetensors" title="Grok 娘">
+      <div class="pic"><img loading="lazy" src="/media/410/thumb" alt=""></div>
+      <div class="nm"><b>Grok 娘</b></div>
+    </button><button class="char " data-char="角色\异环\hotori-v4-000004.safetensors" title="Hotori（异环 28 块）">
+      <div class="pic"><img loading="lazy" src="/media/548/thumb" alt=""></div>
+      <div class="nm"><b>Hotori（异环 28 块）</b></div>
+    </button><button class="char " data-char="角色\百妖谱\taoyao-v3.safetensors" title="桃夭（百妖谱）">
+      <div class="pic"><img loading="lazy" src="/media/693/thumb" alt=""></div>
+      <div class="nm"><b>桃夭（百妖谱）</b></div>
+    </button><button class="char " data-char="角色\王牌御史\huangxiaoyan-29b-28block.safetensors" title="黄晓烟 Huang Xiaoyan（28块·转自29B）">
+      <div class="pic"><img loading="lazy" src="/media/675/thumb" alt=""></div>
+      <div class="nm"><b>黄晓烟 Huang Xiaoyan（28块·转自29B）</b></div>
+    </button><button class="char " data-char="角色\狐妖小红娘\tushansusu-v5.safetensors" title="涂山苏苏">
+      <div class="pic"><img loading="lazy" src="/media/641/thumb" alt=""></div>
+      <div class="nm"><b>涂山苏苏</b></div>
+    </button><button class="char " data-char="角色\狐妖小红娘\tushanrongrong-v3.safetensors" title="涂山容容">
+      <div class="pic"><img loading="lazy" src="/media/640/thumb" alt=""></div>
+      <div class="nm"><b>涂山容容</b></div>
+    </button><button class="char " data-char="角色\碧蓝档案\Aru_(Blue_Archive)-Blue_Archive-variant-241-anima-v1.safetensors" title="爱露（Rikuhachima Aru）">
+      <div class="pic"><img loading="lazy" src="/media/708/thumb" alt=""></div>
+      <div class="nm"><b>爱露（Rikuhachima Aru）</b></div>
+    </button><button class="char " data-char="角色\星穹铁道\sgb-anima-hsr-silverwolf-v1.safetensors" title="银狼">
+      <div class="pic"><img loading="lazy" src="/media/615/thumb" alt=""></div>
+      <div class="nm"><b>银狼</b></div>
+    </button><button class="char " data-char="角色\原神\genshin-2712991.safetensors" title="夜兰">
+      <div class="pic"><img loading="lazy" src="/media/424/thumb" alt=""></div>
+      <div class="nm"><b>夜兰</b></div>
+    </button><button class="char " data-char="角色\星穹铁道\clara-anima.safetensors" title="克拉拉">
+      <div class="pic"><img loading="lazy" src="/media/579/thumb" alt=""></div>
+      <div class="nm"><b>克拉拉</b></div>
+    </button><button class="char " data-char="角色\绝区零\ellen-joe-anima.safetensors" title="艾莲·乔">
+      <div class="pic"><img loading="lazy" src="/media/993/thumb" alt=""></div>
+      <div class="nm"><b>艾莲·乔</b></div>
+    </button><button class="char " data-char="角色\绝区零\qingyi-anima.safetensors" title="青衣">
+      <div class="pic"><img loading="lazy" src="/media/1012/thumb" alt=""></div>
+      <div class="nm"><b>青衣</b></div>
+    </button><button class="char " data-char="角色\星穹铁道\HSR_Hyacine.safetensors" title="风堇">
+      <div class="pic"><img loading="lazy" src="/media/587/thumb" alt=""></div>
+      <div class="nm"><b>风堇</b></div>
+    </button><button class="char " data-char="角色\星穹铁道\ANI NOTE Aglaea Honkai Star Rail.safetensors" title="阿格莱雅">
+      <div class="pic"><img loading="lazy" src="/media/575/thumb" alt=""></div>
+      <div class="nm"><b>阿格莱雅</b></div>
+    </button><button class="char " data-char="角色\绝区零\yuzuha-anima.safetensors" title="柚叶">
+      <div class="pic"><img loading="lazy" src="/media/1030/thumb" alt=""></div>
+      <div class="nm"><b>柚叶</b></div>
+    </button><button class="char " data-char="角色\原神\genshin-3016388.safetensors" title="玛薇卡">
+      <div class="pic"><img loading="lazy" src="/media/447/thumb" alt=""></div>
+      <div class="nm"><b>玛薇卡</b></div>
+    </button><button class="char " data-char="角色\原神\genshin-3184739.safetensors" title="芙宁娜">
+      <div class="pic"><img loading="lazy" src="/media/466/thumb" alt=""></div>
+      <div class="nm"><b>芙宁娜</b></div>
+    </button><button class="char " data-char="角色\原神\genshin-barbara-ingame-anima-lora-nochekaiser.safetensors" title="芭芭拉">
+      <div class="pic"><img loading="lazy" src="/media/508/thumb" alt=""></div>
+      <div class="nm"><b>芭芭拉</b></div>
+    </button><button class="char " data-char="角色\异环\hotori-v2-000003.safetensors" title="Hotori v2（异环） · 第3轮">
+      <div class="pic"><img loading="lazy" src="/media/543/thumb" alt=""></div>
+      <div class="nm"><b>Hotori v2（异环） · 第3轮</b></div>
+    </button><button class="char " data-char="角色\鸣潮\jinhsiAnima.safetensors" title="今汐">
+      <div class="pic"><img loading="lazy" src="/media/1093/thumb" alt=""></div>
+      <div class="nm"><b>今汐</b></div>
+    </button><button class="char " data-char="角色\鸣潮\lili-v3.safetensors" title="莉莉（汐训 v3）">
+      <div class="pic"><img loading="lazy" src="/media/1094/thumb" alt=""></div>
+      <div class="nm"><b>莉莉（汐训 v3）</b></div>
+    </button><button class="char " data-char="角色\彼女催眠 Kanojo Saimin\KotoTenryuuji-天龍寺琴-anima.safetensors" title="天龍寺琴">
+      <div class="pic"><img loading="lazy" src="/media/551/thumb" alt=""></div>
+      <div class="nm"><b>天龍寺琴</b></div>
+    </button><button class="char " data-char="角色\绝区零\nicole-anima.safetensors" title="妮可·德玛拉">
+      <div class="pic"><img loading="lazy" src="/media/1004/thumb" alt=""></div>
+      <div class="nm"><b>妮可·德玛拉</b></div>
+    </button><button class="char " data-char="角色\星穹铁道\sgb-anima-hsr-himeko-v1.safetensors" title="姬子">
+      <div class="pic"><img loading="lazy" src="/media/606/thumb" alt=""></div>
+      <div class="nm"><b>姬子</b></div>
+    </button><button class="char " data-char="角色\绝区零\miyabi-anima.safetensors" title="星见雅">
+      <div class="pic"><img loading="lazy" src="/media/1001/thumb" alt=""></div>
+      <div class="nm"><b>星见雅</b></div>
+    </button><button class="char " data-char="角色\狐妖小红娘\yaya-v1.safetensors" title="涂山雅雅（汐训 v1）">
+      <div class="pic"><img loading="lazy" src="/media/642/thumb" alt=""></div>
+      <div class="nm"><b>涂山雅雅（汐训 v1）</b></div>
+    </button><button class="char " data-char="角色\原神\genshin-3325946.safetensors" title="胡桃">
+      <div class="pic"><img loading="lazy" src="/media/480/thumb" alt=""></div>
+      <div class="nm"><b>胡桃</b></div>
+    </button><button class="char " data-char="角色\狐妖小红娘\tushanhonghong-v2.safetensors" title="涂山红红（汐训 v2）">
+      <div class="pic"><img loading="lazy" src="/media/639/thumb" alt=""></div>
+      <div class="nm"><b>涂山红红（汐训 v2）</b></div>
+    </button><button class="char " data-char="角色\星穹铁道\lingsha-anima.safetensors" title="灵砂">
+      <div class="pic"><img loading="lazy" src="/media/593/thumb" alt=""></div>
+      <div class="nm"><b>灵砂</b></div>
+    </button><button class="char " data-char="角色\绝区零\velina-anima-v2.safetensors" title="维琳娜·艾嘉德">
+      <div class="pic"><img loading="lazy" src="/media/1025/thumb" alt=""></div>
+      <div class="nm"><b>维琳娜·艾嘉德</b></div>
+    </button><button class="char " data-char="角色\碧蓝档案\Kurosaki Koyuki (3 outfits) - Lavender234.safetensors" title="小雪（Kurosaki Koyuki）">
+      <div class="pic"><img loading="lazy" src="/media/734/thumb" alt=""></div>
+      <div class="nm"><b>小雪（Kurosaki Koyuki）</b></div>
+    </button><button class="char " data-char="角色\鸣潮\洛可可 roccia.safetensors" title="洛可可">
+      <div class="pic"><img loading="lazy" src="/media/1108/thumb" alt=""></div>
+      <div class="nm"><b>洛可可</b></div>
+    </button></div>
+
+            <div class="stephead">
+              <div><span class="num">02</span><h2>画面</h2></div>
+              <span class="hint">不选就随机</span>
+            </div>
+            <div id="sixGrid" class="six-grid">
+              <button class="six-card disabled" data-pick="body" title="挂角色时用 LoRA 原设体型；要改体型就勾「覆盖角色体型」" disabled=""><span>体型</span><b id="sixBody">角色原装</b></button>
+              <button class="six-card" data-pick="scene"><span>场景</span><b id="sixScene">随机</b></button>
+              <button class="six-card" data-pick="outfit"><span>服装</span><b id="sixOutfit">原装</b></button>
+              <button class="six-card on" data-pick="people"><span>人数</span><b id="sixPeople">单人</b></button>
+              <button class="six-card" data-pick="pose"><span>姿势</span><b id="sixPose">随机</b></button>
+              <button class="six-card" data-pick="action"><span>动作</span><b id="sixAction">随机</b></button>
+              <button class="six-card" data-pick="expression"><span>表情</span><b id="sixExpression">随机</b></button>
+            </div>
+            <div id="outfitLoraSlot" class="outfit-lora-slot hidden"><span>服装支</span><b id="outfitLoraName"></b><button id="outfitLoraClear" class="mini">清除</button></div>
+            <div id="actionLoraSlot" class="outfit-lora-slot hidden"><span>动作支</span><b id="actionLoraName"></b><button id="actionLoraClear" class="mini">清除</button></div>
+            <div class="quick-row"><span class="hint">快速风格</span><div id="quickStyles" class="quick-styles"><button class="quick-chip" data-quick="1">夜景</button><button class="quick-chip" data-quick="2">泳装</button><button class="quick-chip" data-quick="3">双人</button><button class="quick-chip" data-quick="4">外出</button><button class="quick-chip" data-quick="5">咖啡</button><button class="quick-chip" data-quick="6">图书馆</button><button class="quick-chip" data-quick="7">海边</button><button class="quick-chip" data-quick="8">雨天</button><button class="quick-chip" data-quick="9">雪景</button><button class="quick-chip" data-quick="10">祭典</button><button class="quick-chip" data-quick="11">音乐</button><button class="quick-chip" data-quick="12">野餐</button><button class="quick-chip" data-quick="13">花田</button><button class="quick-chip" data-quick="14">冬街</button><button class="quick-chip" data-quick="15">甜品店</button><button class="quick-chip" data-quick="16">地铁</button><button class="quick-chip" data-quick="17">和风庭院</button><button class="quick-chip" data-quick="18">摄影棚</button><button class="quick-chip" data-quick="19">雨天等车</button></div></div>
+            <div class="tag-add-row">
+              <button id="tagOpenCreate" class="mini" type="button">词表／查词</button>
+              <div id="extraChips" class="tag-chips"></div>
+            </div>
+            <details class="more-details" id="moreDetails">
+              <summary>更多细节 <span>道具 / 手上 / 阶段 / 穿脱 / 镜头 / 光线</span></summary>
+              <div class="more-switch">
+                <label class="checkline"><input id="useProps" type="checkbox"> 启用道具</label>
+                <span class="hint">关闭时这一张不带任何道具</span>
+              </div>
+              <div id="moreGrid" class="more-grid">
+                <button class="six-card" data-pick="clip"><span>CLIP</span><b id="moreClip">自动</b></button>
+                <button class="six-card" data-pick="vae"><span>VAE</span><b id="moreVae">自动</b></button>
+                <button class="six-card hidden" data-pick="maleBody" id="moreMaleBodyRow"><span>男性体型</span><b id="moreMaleBody">正常</b></button>
+                <button class="six-card hidden" data-pick="duoRole" id="moreDuoRoleRow"><span>双人主动</span><b id="moreDuoRole">自动</b></button>
+                <button class="six-card adult-only hidden" data-pick="penis" id="morePenisRow"><span>肉棒</span><b id="morePenis">正常</b></button>
+                <button class="six-card disabled" data-pick="props" disabled="" title="先打开「启用道具」"><span>道具</span><b id="moreProps">不带道具</b></button>
+                <button class="six-card" data-pick="hands"><span>手上</span><b id="moreHands">随机</b></button>
+                <button class="six-card" data-pick="shot"><span>景别</span><b id="moreShot">随机</b></button>
+                <button class="six-card" data-pick="angle"><span>角度</span><b id="moreAngle">随机</b></button>
+                <button class="six-card" data-pick="light"><span>光线</span><b id="moreLight">随机</b></button>
+                <button class="six-card" data-pick="time"><span>时间</span><b id="moreTime">随机</b></button>
+                <button class="six-card adult-only hidden" data-pick="undress" id="moreUndressRow"><span>穿脱</span><b id="moreUndress">随机</b></button>
+                <button class="six-card adult-only hidden" data-pick="wet" id="moreWetRow"><span>淫水</span><b id="moreWet">不流</b></button>
+                <button class="six-card" data-pick="tattoo"><span>纹身</span><b id="moreTattoo">无</b></button>
+                <button class="six-card" data-pick="tattooPattern"><span>纹身图案</span><b id="moreTattooPattern">无</b></button>
+                <button class="six-card" data-pick="tattooGlow"><span>纹身发光</span><b id="moreTattooGlow">关</b></button>
+              </div>
+              <div class="aux-block">
+                <div class="aux-head"><b>LoRA 槽</b><span class="hint">额外挂 LoRA，最多 8 支</span></div>
+                <div id="moreAuxRows" class="aux-rows"></div>
+                <button id="moreAuxAdd" class="mini">＋ 添加 LoRA 槽</button>
+              </div>
+            </details>
+            <div id="recipeHint" class="hint" style="margin:4px 0 8px"></div>
+            <details id="promptBox" class="prompt-box hidden">
+              <summary>看最终词</summary>
+              <textarea id="promptText" rows="3" readonly=""></textarea>
+            </details>
+
+            <button id="createBtn" class="create-btn">一键出图</button>
+            <div id="createHint" class="hint"></div>
+            <div class="create-sub">
+              <select id="simpleCount" class="mini">
+                <option value="1">1 张</option>
+                <option value="4">4 张</option>
+                <option value="r4">4 张·每张随机</option>
+              </select>
+              <label class="mini-seed">seed<input id="simpleSeed" type="number" value="-1"></label>
+              <label class="checkline"><input id="bodyOverride" type="checkbox"> 覆盖角色体型</label>
+              <button id="randomCreate" class="ghost">随机全部</button>
+              <select id="stageForeplay" class="mini">
+                <option value="random">前戏·随机</option>
+                <option value="fellatio">前戏·口交</option>
+                <option value="paizuri">前戏·乳交</option>
+                <option value="handjob">前戏·手交</option>
+                <option value="fingering">前戏·指交</option>
+                <option value="cunnilingus">前戏·舔阴</option>
+                <option value="breast">前戏·揉胸</option>
+                <option value="kiss">前戏·亲吻抚摸</option>
+              </select>
+              <select id="stageFinish" class="mini">
+                <option value="auto">收尾·自动</option>
+                <option value="口爆">收尾·口爆</option>
+                <option value="射一脸">收尾·射一脸</option>
+                <option value="射脸一身">收尾·射脸一身</option>
+                <option value="女性高潮">收尾·女性高潮</option>
+                <option value="射手上">收尾·射手上</option>
+                <option value="满足">收尾·满足</option>
+              </select>
+              <button id="stageSeqBtn" class="ghost">阶段序列</button>
+              <button id="advOpen" class="ghost">高级参数</button>
+            </div>
+          </div>
+
+          <div class="panel stage-panel">
+            <div id="stage" class="stage empty">
+              <div class="stage-empty">
+                <div class="stage-orb"></div>
+                <b>这里会出图</b>
+                <span>选好角色和风格，点一下就出。</span>
+              </div>
+            </div>
+            <div id="stageActions" class="stage-actions"></div>
+          </div>
+        </div>
+        <section class="history-wrap">
+          <div class="history-head"><b>本次结果</b><span id="historyCount" class="hint">24 张</span><button id="historyClear" class="mini ghost">清空</button></div>
+          <div id="history" class="history-grid"><div class="hcard" data-hidx="0">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E5%B0%8F%E6%8C%BD%E6%98%BC-20261124080757-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E5%B0%8F%E6%8C%BD%E6%98%BC-20261124080757-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 2094433192</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="1">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E4%B8%89%E6%9C%88%E4%B8%83%C2%B7%E5%AD%98%E6%8A%A4-20261124080726-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E4%B8%89%E6%9C%88%E4%B8%83%C2%B7%E5%AD%98%E6%8A%A4-20261124080726-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 3544003955</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="2">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E9%93%83-20261124080649-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E9%93%83-20261124080649-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 1810589005</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="3">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124075801-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124075801-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 3396463295</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="4">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124074404-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124074404-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 2492679176</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="5">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124074342-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124074342-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 4003407565</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="6">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124074317-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124074317-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 1323646816</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="7">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124074243-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124074243-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 917821477</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="8">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E9%93%83-20261124072457-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E9%93%83-20261124072457-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 3473255802</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        
+      </div>
+    </div><div class="hcard" data-hidx="9">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124072354-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124072354-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 542327412</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="10">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124072310-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124072310-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 301040122</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="11">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5CClaude%E5%A8%98-20261124072227-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5CClaude%E5%A8%98-20261124072227-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 3009695828</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="12">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E8%8A%B1%E7%81%AB%EF%BC%88%E6%98%9F%E9%93%81%EF%BC%89-20261124071434-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E8%8A%B1%E7%81%AB%EF%BC%88%E6%98%9F%E9%93%81%EF%BC%89-20261124071434-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 3509922549</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="13">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070846-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070846-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 2468</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        
+      </div>
+    </div><div class="hcard" data-hidx="14">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070747-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070747-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 2468</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        
+      </div>
+    </div><div class="hcard" data-hidx="15">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070623-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070623-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 2468</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        
+      </div>
+    </div><div class="hcard" data-hidx="16">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070612-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070612-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 2468</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        
+      </div>
+    </div><div class="hcard" data-hidx="17">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070602-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070602-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 2468</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        
+      </div>
+    </div><div class="hcard" data-hidx="18">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070510-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070510-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 2996075251</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="19">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070451-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070451-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 1506911225</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="20">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070432-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070432-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 556133512</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="21">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070352-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124070352-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 3323093325</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        <button class="ghost" data-hact="seed">同 seed</button>
+      </div>
+    </div><div class="hcard" data-hidx="22">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E7%BA%B3%E8%A5%BF%E5%A6%B2-20261124064839-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E7%BA%B3%E8%A5%BF%E5%A6%B2-20261124064839-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 555</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        
+      </div>
+    </div><div class="hcard" data-hidx="23">
+      <div class="hp" data-hopen="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124064534-1_00001_.png"><img loading="lazy" src="/api/localfile?path=D%3A%5CComfy-Desktop%5CComfyUI-Shared%5Coutput%5C%E6%97%A0%E8%A7%92%E8%89%B2-20261124064534-1_00001_.png" alt=""></div>
+      <div class="hm"><span>seed 9999</span><span></span></div>
+      <div class="ha">
+        <button class="ghost " data-hact="keep">保留</button>
+        <button class="ghost on" data-hact="drop">丢弃</button>
+        <button class="ghost" data-hact="again">再出</button>
+        
+      </div>
+    </div></div>
+        </section>
+      </section>
+
+            <section id="page-expert" class="page hidden" data-page="expert">
+        <div class="create-grid">
+          <div class="panel controls">
+            <div class="stephead"><div><span class="num">EX</span><h2>专家模式</h2></div></div>
+            <p class="hint">模型、LoRA、词、权重全手填；内容完全由你写的词决定。</p>
+
+            <div class="adv-sec">
+              <h3>模型</h3>
+              <label class="field"><span>模型</span><select id="expModel"></select></label>
+              <div class="adv-2">
+                <label class="field"><span>CLIP</span><select id="expClip"></select></label>
+                <label class="field"><span>VAE</span><select id="expVae"></select></label>
+              </div>
+            </div>
+
+            <div class="adv-sec">
+              <h3>LoRA</h3>
+              <label class="field"><span>角色</span><select id="expChar" class="hidden-select"></select><button type="button" class="lora-pick" data-for="expChar"><span data-label>不指定</span><em>选择</em></button><input id="expCharW" class="adv-weight" type="number" min="0" max="2" step="0.05" placeholder="权重" /></label>
+              <div id="expAuxList" class="exp-aux-list"></div>
+              <button id="expAddAux" class="mini">＋ 加一个 LoRA 槽</button>
+              <label class="field"><span>服装</span><select id="expOutfit" class="hidden-select"></select><button type="button" class="lora-pick" data-for="expOutfit"><span data-label>不指定</span><em>选择</em></button><input id="expOutfitW" class="adv-weight" type="number" min="0" max="2" step="0.05" placeholder="权重" /></label>
+              <label class="field"><span>画风</span><select id="expStyle" class="hidden-select"></select><button type="button" class="lora-pick" data-for="expStyle"><span data-label>不指定</span><em>选择</em></button><input id="expStyleW" class="adv-weight" type="number" min="0" max="2" step="0.05" placeholder="权重" /></label>
+            </div>
+
+            <div class="adv-sec">
+              <h3>工作流</h3>
+              <div class="adv-2">
+                <label class="field"><span>已保存</span><select id="expWorkflowSel"><option value="">不用（按上面参数自动生成）</option></select></label>
+                <div class="adv-acts">
+                  <button id="expWorkflowImport" class="mini">导入…</button>
+                  <button id="expWorkflowManage" class="mini">管理</button>
+                  <button id="expWorkflowDel" class="mini">删除</button>
+                </div>
+              </div>
+              <input id="expWorkflowFile" type="file" accept=".json,application/json" hidden />
+              <p class="hint" id="expWorkflowHint">导入 ComfyUI 的 Save (API) JSON；占位符：{{prompt}} {{negative}} {{seed}} {{steps}} {{cfg}} {{width}} {{height}} {{sampler}} {{scheduler}} {{model}} {{clip}} {{vae}}</p>
+            </div>
+
+            <div class="adv-sec">
+              <h3>词</h3>
+              <label class="field"><span>正面</span><textarea id="expPrompt" rows="6" placeholder="1girl, solo, ..."></textarea></label>
+              <label class="field"><span>负面</span><textarea id="expNeg" rows="3"></textarea></label>
+              <div class="adv-acts"><button id="tagOpenExpert" class="mini" type="button">词表／查词</button><button id="expNegDefault" class="mini">默认负面</button><button id="expNegEmpty" class="mini">清空</button></div>
+            </div>
+
+            <div class="adv-sec">
+              <h3>参数</h3>
+              <div class="adv-3">
+                <label class="field"><span>步数</span><input id="expSteps" type="number" min="1" max="80" value="28" /></label>
+                <label class="field"><span>CFG</span><input id="expCfg" type="number" min="1" max="20" value="4" /></label>
+                <label class="field"><span>seed</span><input id="expSeed" type="number" value="-1" /></label>
+              </div>
+              <div class="adv-2">
+                <label class="field"><span>尺寸</span><select id="expSize">
+                  <option value="832x1216">竖 832×1216</option>
+                  <option value="1216x832">横 1216×832</option>
+                  <option value="1024x1024">方 1024×1024</option>
+                  <option value="custom">自定义…</option>
+                </select></label>
+                <label class="field"><span>张数</span><select id="expCount"><option>1</option><option>2</option><option>3</option><option>4</option><option>6</option><option>8</option></select></label>
+              </div>
+              <div class="adv-2 hidden" id="expCustomSize">
+                <label class="field"><span>宽</span><input id="expW" type="number" min="256" max="2048" step="64" value="832" /></label>
+                <label class="field"><span>高</span><input id="expH" type="number" min="256" max="2048" step="64" value="1216" /></label>
+              </div>
+              <div class="adv-2">
+                <label class="field"><span>采样器</span><select id="expSampler">
+                  <option value="euler">euler</option><option value="euler_ancestral">euler_ancestral</option>
+                  <option value="dpmpp_2m">dpmpp_2m</option><option value="dpmpp_2m_sde">dpmpp_2m_sde</option>
+                  <option value="dpmpp_3m_sde">dpmpp_3m_sde</option><option value="ddim">ddim</option><option value="uni_pc">uni_pc</option>
+                </select></label>
+                <label class="field"><span>调度器</span><select id="expScheduler">
+                  <option value="normal">normal</option><option value="karras">karras</option><option value="exponential">exponential</option>
+                  <option value="sgm_uniform">sgm_uniform</option><option value="simple">simple</option><option value="beta">beta</option>
+                </select></label>
+              </div>
+            </div>
+
+            <div class="adv-sec">
+              <h3>两段式（可选）</h3>
+              <label class="checkline"><input id="expTwoPass" type="checkbox" /> 第一段出图 → 第二段图生图</label>
+              <label class="field"><span>第二段模型</span><select id="expModel2"></select></label>
+              <div class="adv-2">
+                <label class="field"><span>强度</span><select id="expStrength">
+                  <option value="light">轻</option><option value="mid" selected>中</option><option value="strong">重</option>
+                </select></label>
+                <label class="field"><span>第二段画风</span><select id="expStyle2" class="hidden-select"></select><button type="button" class="lora-pick" data-for="expStyle2"><span data-label>不指定</span><em>选择</em></button><input id="expStyle2W" class="adv-weight" type="number" min="0" max="2" step="0.05" placeholder="权重" /></label>
+              </div>
+              <label class="field"><span>第二段补充词</span><textarea id="expScene2" rows="2"></textarea></label>
+            </div>
+
+            <button id="expRun" class="create-btn">按这些参数出图</button>
+            <div id="expHint" class="hint"></div>
+          </div>
+          <div class="panel stage-panel">
+            <div id="expStage" class="stage empty">
+              <div class="stage-empty"><div class="stage-orb"></div><b>专家出图</b><span>填好参数，点下面的按钮。</span></div>
+            </div>
+            <div id="expActions" class="stage-actions"></div>
+          </div>
+        </div>
+      </section>
+
+<section id="page-library" class="page hidden" data-page="library">
+        <div class="lib-layout">
+          <aside class="lib-side">
+            <div class="side-sec">
+              <div class="side-head"><h3>分类</h3><button id="libAddCat" class="mini" title="新建分类">＋</button></div>
+              <div id="libCats" class="side-list"><button class="side-item on" data-cat=""><span>全部</span><b>946</b></button><button class="side-item " data-cat="角色"><span>角色</span><b>752</b></button><button class="side-item " data-cat="服装"><span>服装</span><b>97</b></button><button class="side-item " data-cat="辅助Lora"><span>辅助Lora</span><b>89</b></button><button class="side-item " data-cat="自己的"><span>自己的</span><b>5</b></button><button class="side-item " data-cat="AI娘"><span>AI娘</span><b>3</b></button></div>
+            </div>
+            <div id="libWorksWrap" class="side-sec hidden">
+              <div class="side-head"><h3>作品</h3></div>
+              <div id="libWorks" class="side-list"><button class="side-item on" data-work=""><span>全部作品</span></button><button class="side-item " data-work="碧蓝航线"><span>碧蓝航线</span><b>173</b></button><button class="side-item " data-work="碧蓝档案"><span>碧蓝档案</span><b>109</b></button><button class="side-item " data-work="原神"><span>原神</span><b>89</b></button><button class="side-item " data-work="绝区零"><span>绝区零</span><b>58</b></button><button class="side-item " data-work="崩铁"><span>崩铁</span><b>49</b></button><button class="side-item " data-work="Nikke"><span>Nikke</span><b>48</b></button><button class="side-item " data-work="鸣潮"><span>鸣潮</span><b>38</b></button><button class="side-item " data-work="崩坏3"><span>崩坏3</span><b>26</b></button><button class="side-item " data-work="明日方舟终末地"><span>明日方舟终末地</span><b>21</b></button><button class="side-item " data-work="转生成史莱姆"><span>转生成史莱姆</span><b>17</b></button><button class="side-item " data-work="葬送的芙莉莲"><span>葬送的芙莉莲</span><b>16</b></button><button class="side-item " data-work="ReZero"><span>ReZero</span><b>15</b></button><button class="side-item " data-work="光之美少女"><span>光之美少女</span><b>15</b></button><button class="side-item " data-work="棕色尘埃2"><span>棕色尘埃2</span><b>13</b></button><button class="side-item " data-work="Overlord"><span>Overlord</span><b>12</b></button><button class="side-item " data-work="为美好的世界献上祝福"><span>为美好的世界献上祝福</span><b>10</b></button><button class="side-item " data-work="狐妖小红娘"><span>狐妖小红娘</span><b>10</b></button><button class="side-item " data-work="迷宫饭"><span>迷宫饭</span><b>7</b></button><button class="side-item " data-work="百妖谱"><span>百妖谱</span><b>5</b></button><button class="side-item " data-work="王牌御史"><span>王牌御史</span><b>4</b></button><button class="side-item " data-work="其他角色"><span>其他角色</span><b>3</b></button><button class="side-item " data-work="涂山苏苏"><span>涂山苏苏</span><b>3</b></button><button class="side-item " data-work="刺客伍六七"><span>刺客伍六七</span><b>3</b></button><button class="side-item " data-work="异环"><span>异环</span><b>3</b></button><button class="side-item " data-work="彼女催眠 Kanojo Saimin"><span>彼女催眠 Kanojo Saimin</span><b>3</b></button><button class="side-item " data-work="星穹铁道"><span>星穹铁道</span><b>3</b></button><button class="side-item " data-work="汐（本体）"><span>汐（本体）</span><b>3</b></button><button class="side-item " data-work="汐"><span>汐</span><b>1</b></button><button class="side-item " data-work="涂山红红"><span>涂山红红</span><b>1</b></button><button class="side-item " data-work="其他角色"><span>其他角色</span><b>1</b></button></div>
+            </div>
+            <div class="side-sec">
+              <div class="side-head"><h3>标签</h3></div>
+              <div id="libTags" class="tagcloud"><button class="tag " data-tag="1girl">1girl</button><button class="tag " data-tag="looking at viewer">looking at viewer</button><button class="tag " data-tag="standing">standing</button><button class="tag " data-tag="open mouth">open mouth</button><button class="tag " data-tag="smile">smile</button><button class="tag " data-tag="full body">full body</button><button class="tag " data-tag="sitting">sitting</button><button class="tag " data-tag="solo">solo</button><button class="tag " data-tag="closed mouth">closed mouth</button><button class="tag " data-tag="blush">blush</button><button class="tag " data-tag="upper body">upper body</button><button class="tag " data-tag="holding">holding</button><button class="tag " data-tag="indoors">indoors</button><button class="tag " data-tag="simple background">simple background</button><button class="tag " data-tag="from behind">from behind</button><button class="tag " data-tag="outdoors">outdoors</button><button class="tag " data-tag="long hair">long hair</button><button class="tag " data-tag="bare shoulders">bare shoulders</button><button class="tag " data-tag="long sleeves">long sleeves</button><button class="tag " data-tag="breasts">breasts</button><button class="tag " data-tag="white background">white background</button><button class="tag " data-tag="parted lips">parted lips</button><button class="tag " data-tag="closed eyes">closed eyes</button><button class="tag " data-tag="from side">from side</button><button class="tag " data-tag="collarbone">collarbone</button><button class="tag " data-tag="cowboy shot">cowboy shot</button><button class="tag " data-tag="cleavage">cleavage</button><button class="tag " data-tag="jewelry">jewelry</button><button class="tag " data-tag="hair ornament">hair ornament</button><button class="tag " data-tag="large breasts">large breasts</button><button class="tag " data-tag="ass">ass</button><button class="tag " data-tag="sky">sky</button><button class="tag " data-tag="navel">navel</button><button class="tag " data-tag="day">day</button><button class="tag " data-tag="lying">lying</button><button class="tag " data-tag="gloves">gloves</button><button class="tag " data-tag="arm up">arm up</button><button class="tag " data-tag="looking back">looking back</button><button class="tag " data-tag="hair between eyes">hair between eyes</button><button class="tag " data-tag="thighs">thighs</button></div>
+            </div>
+            <button id="scanLib" class="ghost side-scan">扫描磁盘</button>
+          </aside>
+          <div class="lib-main">
+            <div id="firstRun" class="firstrun hidden">
+              <div class="fr-text">
+                <b id="frTitle">第一次用？</b>
+                <span class="hint" id="frSub">两分钟看完「说明」：连 ComfyUI、设目录、出第一张图。</span>
+              </div>
+              <div class="fr-acts">
+                <button id="firstRunOpen" class="primary">看说明</button>
+                <button id="firstRunSkip" class="mini">不用了</button>
+              </div>
+            </div>
+            <div class="lib-toolbar">
+              <div class="search"><input id="libQ" type="search" placeholder="搜名字 / 触发词 / 标签" autocomplete="off"></div>
+              <select id="libSort" class="mini">
+                <option value="name">名字</option>
+                <option value="recent">最近更新</option>
+                <option value="used">用得最多</option>
+                <option value="size">文件最大</option>
+                <option value="work">按作品</option>
+              </select>
+              <select id="libPreview" class="mini">
+                <option value="">全部</option>
+                <option value="1">有图</option>
+                <option value="0">没图</option>
+              </select>
+              <label class="checkline"><input id="libVariants" type="checkbox"> 其它版本</label>
+              <span id="libCount" class="hint"></span>
+              <span class="spacer"></span>
+              <button id="libDownload" class="primary mini-primary">下载</button>
+            </div>
+            <div id="libGrid" class="lib-grid"></div>
+            <div id="libMore" class="lib-more hidden"><button id="libMoreBtn" class="ghost">加载更多</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-records" class="page hidden hidden" data-page="records">
+        <div class="lib-toolbar">
+          <div class="search"><input id="recQ" type="search" placeholder="搜 prompt 里的词，反查出图记录" autocomplete="off"></div>
+          <span id="recCount" class="hint"></span>
+        </div>
+        <div id="recList" class="rec-list">
+          <div class="skeleton">输入关键词，反查以前用了哪支 LoRA、什么 prompt。</div>
+        </div>
+      </section>
+
+      <section id="page-gallery" class="page hidden" data-page="gallery">
+        <div class="lib-toolbar">
+          <div class="search"><input id="galQ" type="search" placeholder="搜文件名，例如 纳西妲 / 20261124" autocomplete="off"></div>
+          <select id="galRoot" class="gal-sort"><option value="output">出图目录</option><option value="samples">成品区</option></select>
+          <select id="galSort" class="gal-sort"><option value="new">最新在前</option><option value="old">最旧在前</option></select>
+          <span id="galCount" class="hint"></span>
+          <div class="gal-acts">
+            <button id="galSelectMode" class="ghost">选择</button>
+            <button id="galDelete" class="ghost danger hidden">删除选中</button>
+            <button id="galOpen" class="ghost">打开目录</button>
+          </div>
+        </div>
+        <div id="galGrid" class="gal-grid"><div class="skeleton">读取图库…</div></div>
+        <div class="gal-more"><button id="galMore" class="ghost hidden">加载更多</button></div>
+      </section>
+
+      <section id="page-guide" class="page hidden" data-page="guide">
+
+
+        <div class="panel guide-panel">
+
+
+          <article id="guideBody" class="guide-body"><div class="skeleton">读取中…</div></article>
+
+
+        </div>
+
+
+      </section>
+
+      <section id="page-manual" class="page hidden" data-page="manual">
+        <div class="panel guide-panel">
+          <article id="manualBody" class="guide-body"><div class="skeleton">读取中…</div></article>
+        </div>
+      </section>
+
+
+      
+
+
+      <section id="page-settings" class="page hidden hidden" data-page="settings">
+        <div class="settings-grid">
+          <div class="panel wide" id="r18Panel">
+            <div class="stephead"><div><span class="num">0</span><h2>内容模式</h2></div><span id="r18State" class="badge">未开启</span></div>
+            <label class="switch-row">
+              <span class="switch"><input id="r18Toggle" type="checkbox"><i></i></span>
+              <span class="switch-copy">
+                <b>启用成人内容（18+）</b>
+                <span class="hint">关着只出正常图：成人向的场景、服装、姿势等档位不进词池。打开并确认协议之后，这些档位才出现。</span>
+              </span>
+            </label>
+            <div class="warn-box"><b>⚠ 提示</b><span>开启要做一次年龄和免责确认。内容在本机生成、本机保存，怎么用、给谁看由你自己负责。专家模式不跟这个开关联动。</span></div>
+            <div class="edit-actions"><button id="r18TermsBtn" class="mini">查看免责协议</button></div>
+          </div>
+          <div class="panel">
+            <div class="stephead"><div><span class="num">A</span><h2>ComfyUI</h2></div><button id="testComfy" class="mini">测试连接</button><button id="startComfy" class="mini">启动 ComfyUI</button></div>
+            <div id="startComfyState" class="hint"></div>
+            <label class="field"><span>地址</span><input id="cfgComfy" placeholder="http://127.0.0.1:8188"></label>
+            <label class="field"><span>目录（一键启动用）</span><input id="cfgComfyDir" readonly title="用下面的按钮选，避免手打错" placeholder="D:\ComfyUI_windows_portable\ComfyUI"></label>
+            <div class="pick-row"><button type="button" class="mini folder-pick" data-target="cfgComfyDir">选择文件夹…</button><button type="button" class="mini folder-clear" data-target="cfgComfyDir">清空</button></div>
+            <label class="field"><span>启动命令（可空）</span><input id="cfgComfyLaunch" placeholder="留空按目录自动拼"></label>
+            <div id="testResult" class="hint"></div>
+          </div>
+          <div class="panel">
+            <div class="stephead"><div><span class="num">D</span><h2>Civitai</h2></div></div>
+            <label class="field"><span>API Key（下载/NSFW 需要时填）</span><input id="cfgCivToken" placeholder="Civitai → Account settings → API Keys"></label>
+            <p class="hint">下载时自动拉取：触发词、特征词、底模、预览图、下载页和作者信息。</p>
+          </div>
+          <div class="panel">
+            <div class="stephead"><div><span class="num">B</span><h2>目录</h2></div></div>
+            <label class="field"><span>LoRA 根目录</span><input id="cfgLoras" readonly title="用下面的按钮选，避免手打错" placeholder="含 .safetensors 的文件夹"></label>
+            <div class="pick-row"><button type="button" class="mini folder-pick" data-target="cfgLoras">选择文件夹…</button><button type="button" class="mini folder-clear" data-target="cfgLoras">清空</button></div>
+            <label class="field"><span>额外 LoRA 目录</span><textarea id="cfgExtra" rows="3" readonly title="用下面的按钮加，避免手打错" placeholder="一行一个"></textarea></label>
+            <div class="pick-row"><button type="button" class="mini folder-pick" data-target="cfgExtra">添加文件夹…</button><button type="button" class="mini folder-clear" data-target="cfgExtra">清空</button></div>
+            <label class="field"><span>出图目录</span><input id="cfgOut" readonly title="用下面的按钮选，避免手打错" placeholder="ComfyUI 的 output"></label>
+            <div class="pick-row"><button type="button" class="mini folder-pick" data-target="cfgOut">选择文件夹…</button><button type="button" class="mini folder-clear" data-target="cfgOut">清空</button></div>
+            <label class="field"><span>样张目录（可空）</span><input id="cfgSamples" readonly title="用下面的按钮选，避免手打错" placeholder="留空用出图目录"></label>
+            <div class="pick-row"><button type="button" class="mini folder-pick" data-target="cfgSamples">选择文件夹…</button><button type="button" class="mini folder-clear" data-target="cfgSamples">清空</button></div>
+          </div>
+          <div class="panel wide">
+            <div class="stephead"><div><span class="num">C</span><h2>模型目录</h2></div></div>
+            <div class="model-grid">
+              <label class="field"><span>unet</span><input id="cfgMRunet" readonly title="用下面的按钮选，避免手打错" placeholder="选一个文件夹"></label>
+              <div class="pick-row"><button type="button" class="mini folder-pick" data-target="cfgMRunet">选择文件夹…</button><button type="button" class="mini folder-clear" data-target="cfgMRunet">清空</button></div>
+              <label class="field"><span>clip</span><input id="cfgMRclip" readonly title="用下面的按钮选，避免手打错" placeholder="选一个文件夹"></label>
+              <div class="pick-row"><button type="button" class="mini folder-pick" data-target="cfgMRclip">选择文件夹…</button><button type="button" class="mini folder-clear" data-target="cfgMRclip">清空</button></div>
+              <label class="field"><span>vae</span><input id="cfgMRvae" readonly title="用下面的按钮选，避免手打错" placeholder="选一个文件夹"></label>
+              <div class="pick-row"><button type="button" class="mini folder-pick" data-target="cfgMRvae">选择文件夹…</button><button type="button" class="mini folder-clear" data-target="cfgMRvae">清空</button></div>
+              <label class="field"><span>checkpoint</span><input id="cfgMRckpt" readonly title="用下面的按钮选，避免手打错" placeholder="选一个文件夹"></label>
+              <div class="pick-row"><button type="button" class="mini folder-pick" data-target="cfgMRckpt">选择文件夹…</button><button type="button" class="mini folder-clear" data-target="cfgMRckpt">清空</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="savebar"><button id="saveCfg" class="primary">保存</button><span id="saveHint" class="hint"></span></div>
+        <div class="panel" style="margin-top:14px">
+          <div class="stephead"><div><span class="num">E</span><h2>维护 / 接口</h2></div></div>
+          <div class="edit-actions">
+            <button id="openHealth" class="ghost">体检</button>
+            <button id="openApi" class="ghost">接口</button>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <div class="stephead"><div><span class="num">F</span><h2>备份</h2></div></div>
+          <p class="hint" id="backupHint">把 lora.db 和 config.json 打包存到数据目录的 backups 下；启动时超过一天没备就自动备一份，留最近 10 份。</p>
+          <div id="backupList" class="hint">读备份…</div>
+          <div class="edit-actions">
+            <button id="backupNow" class="ghost">立即备份</button>
+            <button id="backupOpen" class="ghost">打开备份目录</button>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <div class="stephead"><div><span class="num">G</span><h2>关于</h2></div></div>
+          <div class="about-box">
+            <p class="about-app" id="aboutApp">洛栈 · LoRA-Vault</p>
+            <p class="about-ver" id="aboutVer">版本 1.0.0</p>
+            <p class="hint about-line">全部功能免费开放，不需要另外花钱才能用。</p>
+            <div id="aboutSponsor" class="about-sponsor hidden">
+              <p class="hint about-line">如果它帮上你了，可以请作者喝杯咖啡：</p>
+              <a id="aboutSponsorLink" class="about-btn" href="#" target="_blank" rel="noreferrer">支持作者</a>
+            </div>
+            <p class="hint about-line hidden" id="aboutPortfolio">作品展示：<a id="aboutPortfolioLink" class="source-link" href="#" target="_blank" rel="noreferrer">C 站主页</a></p>
+            <p class="hint about-line">你的库、预览图和配置全部在本机，不会上传。</p>
+            <p class="hint" id="aboutLine">LoRA 库 v1.0.0 · 保留所有权利 · <a class="source-link" href="/api/license" target="_blank" rel="noreferrer">LICENSE</a></p>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <div class="stephead"><div><span class="num">H</span><h2>更新</h2></div><span id="updateBadge" class="badge">未检查</span></div>
+          <label class="field"><span>更新清单地址（可空）</span><input id="cfgUpdate" placeholder="https://…/latest.json 或本地文件路径"></label>
+          <p class="hint" id="updateHint">清单 JSON：{"version":"1.1.0","url":"安装包地址","sha256":"可选，给就校验","notes":"改了什么"}。填了地址，启动时会自动查一次；有新版就在这里下载、静默安装并自动重启。</p>
+          <div class="update-progress hidden" id="updateProgress">
+            <div class="update-bar"><i id="updateBarFill"></i></div>
+            <span id="updateProgressText" class="hint"></span>
+          </div>
+          <div class="edit-actions">
+            <button id="updateCheck" class="ghost">检查更新</button>
+            <button id="updateGo" class="ghost hidden">下载并更新</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div id="tagModal" class="gate hidden">
+  <div class="gate-card tag-card">
+    <div class="tag-head">
+      <div><span class="gate-mark">TAGS</span><h1>词表</h1></div>
+      <button id="tagClose" class="mini">关闭</button>
+    </div>
+        <div class="tag-src" id="tagSrc">
+      <button class="quick-chip on" type="button" data-src="all">词表</button>
+      <button class="quick-chip" type="button" data-src="recent">最近</button>
+      <span id="tagCount" class="hint"></span>
+    </div>
+    <div class="tag-cats" id="tagCats"></div>
+    <input id="tagSearch" type="search" placeholder="搜 tag 或中文：paizuri / 白丝 / 后入" autocomplete="off">
+    <div id="tagList" class="tag-list"></div>
+    <div class="tag-foot">
+      <button id="tagMore" class="mini hidden">加载更多</button>
+      <span id="tagHint" class="hint">点一行插到正面；按住 Shift 点插到负面</span>
+    </div>
+  </div>
+</div>
+
+<div id="loraPickModal" class="gate hidden">
+  <div class="gate-card lora-pick-card">
+    <div class="tag-head">
+      <div><span class="gate-mark">LORA</span><h1 id="loraPickTitle">选一支 LoRA</h1></div>
+      <button id="loraPickClose" class="mini" type="button">取消</button>
+    </div>
+    <input id="loraPickSearch" type="search" placeholder="搜名字 / 文件名 / 触发词" autocomplete="off">
+    <div id="loraPickList" class="lora-pick-list"></div>
+    <div class="lora-pick-foot">
+      <span id="loraPickHint" class="hint">点一行选中，可以按名字搜。</span>
+      <button id="loraPickOk" class="primary">确定</button>
+    </div>
+  </div>
+</div>
+
+<div id="healthModal" class="gate hidden">
+  <div class="gate-card download-card">
+    <div class="gate-mark">HEALTH</div>
+    <h1>体检</h1>
+    <div id="healthBody" class="hint">算着呢…</div>
+    <div id="healthDups" class="health-dups"></div>
+    <div class="health-actions">
+      <button id="fillMeta" class="primary mini-primary">补词和地址</button>
+      <button id="fillPreviews" class="ghost">补预览图</button>
+      <button id="enrichCiv" class="ghost">C站补全</button>
+      <button id="translateZh" class="ghost">补中文名</button>
+      <button id="syncSamples" class="ghost">同步台账</button>
+      <button id="hashSame" class="ghost">算 hash（同大小组）</button>
+      <button id="tagKinds" class="ghost">标签归类</button>
+      <button id="cleanMissing" class="ghost">清丢失</button>
+      <button id="cleanDups" class="ghost">一键清重复记录</button>
+    </div>
+    <div id="healthJob" class="hint"></div>
+    <div class="edit-actions"><button id="healthClose" class="ghost">关闭</button></div>
+  </div>
+</div>
+
+<div id="apiModal" class="gate hidden">
+  <div class="gate-card download-card">
+    <div class="gate-mark">API</div>
+    <h1>开放接口</h1>
+    <p>桌面端 / 命令行写操作需要 Token。完整定义：<a class="source-link" href="/api/openapi.json" target="_blank">/api/openapi.json</a></p>
+    <label class="field"><span>Token</span><input id="apiToken" readonly=""></label>
+    <div id="apiBody" class="hint"></div>
+    <div class="edit-actions"><button id="apiClose" class="ghost">关闭</button></div>
+  </div>
+</div>
+
+<div id="downloadModal" class="gate hidden">
+  <div class="gate-card download-card">
+    <div class="gate-mark">IMPORT</div>
+    <h1>下载 LoRA</h1>
+    <p>下载完自动入库，并拉取触发词、特征词、底模、预览图、下载页和作者信息。</p>
+    <div class="dl-tabs">
+      <button class="dl-tab on" data-dltab="link">链接 / AIR</button>
+      <button class="dl-tab" data-dltab="search">搜 C站</button>
+    </div>
+    <div id="dlLinkPane" class="dl-pane">
+      <label class="field"><span>链接 / AIR / 版本号（一行一个可批量）</span><textarea id="dlText" rows="4" placeholder="https://civitai.com/models/xxxxx?modelVersionId=xxxxx
+https://civitai.com/models/yyyyy"></textarea></label>
+      <label class="field"><span>下载到分类</span><select id="dlCat"><option value="">自动</option></select></label>
+      <div class="edit-actions">
+        <button id="dlStart" class="primary">开始下载</button>
+        <button id="dlClose" class="ghost">关闭</button>
+      </div>
+      <div id="dlStatus" class="hint"></div>
+    </div>
+    <div id="dlSearchPane" class="dl-pane hidden">
+      <div class="civ-searchbar">
+        <input id="civQ" type="search" placeholder="搜模型名 / 角色 / 画风" autocomplete="off">
+        <select id="civBase" title="按底模筛选">
+          <option value="__current__" selected>当前底模</option>
+          <option value="">全部模型</option>
+          <option value="Anima">Anima</option>
+          <option value="SDXL 1.0">SDXL</option>
+          <option value="Illustrious">Illustrious</option>
+          <option value="Pony">Pony</option>
+          <option value="SD 1.5">SD 1.5</option>
+          <option value="Flux.1 D">Flux</option>
+        </select>
+        <label class="checkline"><input id="civNsfw" type="checkbox" checked=""> NSFW</label>
+        <button id="civSearchBtn" class="primary mini-primary">搜索</button>
+      </div>
+      <div id="civHint" class="hint"></div>
+      <div id="civGrid" class="civ-grid"></div>
+      <div class="civ-toolbar">
+        <span id="civSelCount" class="hint">没选</span>
+        <span class="spacer"></span>
+        <button id="civMore" class="ghost">加载更多</button>
+        <button id="civDlSel" class="primary mini-primary">下载所选</button>
+      </div>
+      <div id="civDetail" class="civ-detail hidden"></div>
+      <div class="edit-actions"><button id="dlClose2" class="ghost">关闭</button></div>
+    </div>
+    <div class="dl-queue-wrap">
+      <div class="dl-queue-head">
+        <b>下载队列</b><span id="dlQueueCount" class="hint"></span>
+        <span class="spacer"></span>
+        <button id="dlPauseAll" class="ghost">全部暂停</button>
+        <button id="dlResumeAll" class="ghost">全部继续</button>
+        <button id="dlClear" class="ghost">清记录</button>
+      </div>
+      <div id="dlQueue" class="dl-queue"><div class="hint">还没有下载任务。</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="pickerModal" class="gate hidden">
+  <div class="gate-card picker-card">
+    <div class="picker-head"><b id="pickerTitle">选择</b><button id="pickerClose" class="mini">关闭</button></div>
+    <input id="pickerSearch" type="search" placeholder="筛一下…" autocomplete="off">
+    <div id="pickerOptions" class="picker-options"></div>
+    <div class="edit-actions"><button id="pickerRandom" class="ghost">随机</button></div>
+  </div>
+</div>
+
+<div id="variantModal" class="gate hidden">
+  <div class="gate-card picker-card">
+    <div class="picker-head"><b id="variantTitle">这个支里有多个触发词</b><button id="variantClose" class="mini">关闭</button></div>
+    <input id="variantSearch" type="search" placeholder="筛角色 / 触发词…" autocomplete="off">
+    <div id="variantOptions" class="picker-options"></div>
+    <div id="variantEmpty" class="hint hidden">没有匹配的触发词</div>
+  </div>
+</div>
+
+<div id="undressModal" class="gate hidden">
+  <div class="gate-card picker-card">
+    <div class="picker-head"><b>穿脱（按部位）</b><button id="undressClose" class="mini">关闭</button></div>
+    <div class="hint" style="margin:0 0 10px">每个部位单独选；不选就不动它。全脱衣服 + 袜子穿好 = 只穿袜子。</div>
+    <div id="undressParts" class="undress-parts"></div>
+    <div class="edit-actions undress-presets">
+      <button class="ghost" data-undress-preset="all">全穿好</button>
+      <button class="ghost" data-undress-preset="nude">全脱</button>
+      <button class="ghost" data-undress-preset="socks">只留袜子</button>
+      <button class="ghost" data-undress-preset="clear">清空</button>
+    </div>
+  </div>
+</div>
+
+<aside id="advPanel" class="adv-drawer hidden">
+  <div class="adv-head"><b>高级参数</b><button id="advClose" class="mini">关闭</button></div>
+  <div class="adv-body">
+    <p class="hint">高级模式只影响这一次出图；角色仍用创作页选的那个。</p>
+    <div class="adv-sec">
+      <h3>模型 / 画幅</h3>
+      <label class="field"><span>模型</span><select id="advModel"><option value="checkpoint:anime\anima-base-v1.0.safetensors">整包 · anime\anima-base-v1.0.safetensors</option><option value="checkpoint:anime\anima-turbo-v1.1.safetensors">整包 · anime\anima-turbo-v1.1.safetensors</option><option value="checkpoint:anime\miaomiao-harem-anima-2.9b.safetensors">整包 · anime\miaomiao-harem-anima-2.9b.safetensors</option><option value="checkpoint:anime\nova3DCGAM_v3029B.safetensors">整包 · anime\nova3DCGAM_v3029B.safetensors</option><option value="checkpoint:anime\reedAnimaXXX_v14.safetensors">整包 · anime\reedAnimaXXX_v14.safetensors</option><option value="checkpoint:anime\uwumerge-anima-v9.safetensors">整包 · anime\uwumerge-anima-v9.safetensors</option><option value="checkpoint:sdxl\NoobAI-XL-VPred-1.0.safetensors">整包 · sdxl\NoobAI-XL-VPred-1.0.safetensors</option><option value="checkpoint:sdxl\WAI-illustrious-SDXL-v17.safetensors">整包 · sdxl\WAI-illustrious-SDXL-v17.safetensors</option><option value="unet:Anima-2.9B-preview-v1.safetensors">unet · Anima-2.9B-preview-v1.safetensors</option><option value="unet:JANIMA29b_V1.1_bf16.safetensors">unet · JANIMA29b_V1.1_bf16.safetensors</option><option value="unet:SilvermoonMix-Anima29B-Evolved-V2.3.safetensors">unet · SilvermoonMix-Anima29B-Evolved-V2.3.safetensors</option><option value="unet:anima-base-v1.0.safetensors">unet · anima-base-v1.0.safetensors</option><option value="unet:anima-turbo-v1.1.safetensors">unet · anima-turbo-v1.1.safetensors</option><option value="unet:lustify-v10-krea-turbo-fp8.safetensors">unet · lustify-v10-krea-turbo-fp8.safetensors</option><option value="unet:miaomiao-harem-anima-2.9b.safetensors">unet · miaomiao-harem-anima-2.9b.safetensors</option><option value="unet:nova3DCGAM_v3029B.safetensors">unet · nova3DCGAM_v3029B.safetensors</option><option value="unet:reedAnimaXXX_v14.safetensors">unet · reedAnimaXXX_v14.safetensors</option><option value="unet:uwumerge-anima-v9.safetensors">unet · uwumerge-anima-v9.safetensors</option><option value="unet:wan2.2_ti2v_5B_fp16.safetensors">unet · wan2.2_ti2v_5B_fp16.safetensors</option></select></label>
+      <div class="adv-2">
+        <label class="field"><span>尺寸</span><select id="advSize">
+          <option value="832x1216">竖 832×1216</option>
+          <option value="1216x832">横 1216×832</option>
+          <option value="1024x1024">方 1024×1024</option>
+          <option value="768x1344">高竖 768×1344</option>
+          <option value="1344x768">宽横 1344×768</option>
+          <option value="custom">自定义…</option>
+        </select></label>
+        <label class="field"><span>张数</span><select id="advCount">
+          <option>1</option><option>2</option><option>3</option><option>4</option><option>6</option><option>8</option>
+        </select></label>
+      </div>
+      <div class="adv-2 hidden" id="advCustomSize">
+        <label class="field"><span>宽</span><input id="advW" type="number" min="256" max="2048" step="64" value="832"></label>
+        <label class="field"><span>高</span><input id="advH" type="number" min="256" max="2048" step="64" value="1216"></label>
+      </div>
+    </div>
+    <div class="adv-sec">
+      <h3>LoRA</h3>
+      <label class="field"><span>辅助</span><input class="adv-q" data-q-target="#advAux" data-q-slot="aux" placeholder="搜辅助 LoRA" autocomplete="off"><select id="advAux"><option value="">无</option><option value="辅助Lora\body_writing_anima_v1.safetensors">(ANIMA) Body Writing-erotic / 身体に落書き-エロ</option><option value="辅助Lora\condom_left_inside_anima_v1.safetensors">(ANIMA) Condom Left Inside / ゴム残し</option><option value="辅助Lora\grabbed_breast_over_shoulder_anima_v1.safetensors">(ANIMA) Grabbed Breast Over Shoulder / 肩を組んで乳揉み</option><option value="辅助Lora\grabbing_hair_anima_v1.safetensors">(ANIMA) Grabbing another's hair/bangs | 髪掴み</option><option value="辅助Lora\choke_hold_rnc_anima_v1.safetensors">(ANIMA) Rear Naked Choke / 裸絞め</option><option value="辅助Lora\togawagatame_anima_v1.safetensors">(ANIMA) Togawagatame - Locked Legs / 戸川固め</option><option value="辅助Lora\coming_alt-anima-000007.safetensors">[ANIMA] "I'm coming" speech bubble</option><option value="辅助Lora\vaginal_gaping_cervix-v2-ana-concept-soralz.safetensors">[ANIMA] Concept - Vaginal Gaping (Cervix View) 膣開き（子宮口）</option><option value="辅助Lora\[Anima][Concept]spade_vine_tattoo-06.safetensors">[Anima] Spade vine tattoo</option><option value="辅助Lora\hosiery-opacity-slider-v4-no11-r4.safetensors">[Concept] Opacity Slider for Hosiery / Thigh-highs / Pantyhose / Tights</option><option value="辅助Lora\midis_FootWorship_V0.5[Anima].safetensors">[Pov] FootWorship - Anima | NAI VPRED | Illustrious | Pony</option><option value="辅助Lora\Aesthetic compositionV1.safetensors">Aesthetic composition | 美学构图</option><option value="辅助Lora\arched_back_epoch_10.safetensors">arched back sex</option><option value="辅助Lora\large_areolae_addift_anima.safetensors">Areolae size slider</option><option value="辅助Lora\balllickingV1Anima.safetensors">Ball Licking Concept - Anima</option><option value="辅助Lora\BallsDeep-Anima-V1F-Re.safetensors">Balls Deep / Deep(er) Penetration</option><option value="辅助Lora\handunderclothes_anima_epoch_10.safetensors">Breast Grab Under Clothes | LoRA</option><option value="辅助Lora\breast_pull_ta_v0.2.0_08e-00720s.safetensors">Breast pull</option><option value="辅助Lora\VIA_Breast_Anima.safetensors">Breast Size Slider</option><option value="辅助Lora\afterimage_(breasts)_v0.0.2_0800.safetensors">Concept &gt; Afterimage (breasts)</option><option value="辅助Lora\home_run_acme_v0.0.0-1000.safetensors">Concept &gt; Home Run Acme (Excessive Female Orgasm)</option><option value="辅助Lora\cndom_nipp.safetensors">Condom on Nipples / 乳首にコンドーム [Anima]</option><option value="辅助Lora\condomontongueanimav1.1.safetensors">condom on tongue/licking condom [ゴム舌置き]  &lt;ILL&gt; &lt;Anima&gt;</option><option value="辅助Lora\cumSliderV2.safetensors">Cum Slider LoRA</option><option value="辅助Lora\cut-in_viewAnima.safetensors">Cut-In Views - Anima</option><option value="辅助Lora\deeppentration_1_epoch_10.safetensors">Deep Penetration | LoRA</option><option value="辅助Lora\NM_seethrough_anm.safetensors">Detailed see-through clothes, LoRA, Anima | PonyXL | Illustrious XL</option><option value="辅助Lora\extpose_v0.0.0-step00002000.safetensors">Dynamic pose</option><option value="辅助Lora\_feet_epoch_10.safetensors">Feet (Anima/Illustrious)</option><option value="辅助Lora\masturbation_h_anima_epoch_8.safetensors">female masturbation</option><option value="辅助Lora\gsfb_anima-step00002600.safetensors">Grabbing shoulders from behind sex</option><option value="辅助Lora\group_sex_with_a_large_number_of_boys__anima__anima_3308568_epoch_9.safetensors">group sex with a large number of boys (anima, illustrious)</option><option value="辅助Lora\hj_from_side_v3-000009.safetensors">Handjob from side (POV)</option><option value="辅助Lora\FComic1to1000_Anima_V1.safetensors">Hentai Comic Random Generator (FULL COLOR) Anima / Pony / IL XL | フルカラーエロ漫画ランダムジェネレーター</option><option value="辅助Lora\Intense_Ahegao__Fucked_Silly_Ahegao__One_Eye_Half_Closed_Ahegao_anima.safetensors">Intense Ahegao, Fucked Silly Ahegao, One Eye Half Closed Ahegao</option><option value="辅助Lora\suspended_sex_epoch_10.safetensors">lifted group sex</option><option value="辅助Lora\Masturbation with dildo - object insertion (Anima) v1.safetensors">Masturbation with dildo / Object insertion</option><option value="辅助Lora\AN_doggydp_epoch_5.safetensors">Mounted Doggystyle DP (not cowgirl)/ doggy Double penetration  SDXL/Illustrious</option><option value="辅助Lora\mtu_virusAnima.safetensors">Mtu Virus</option><option value="辅助Lora\multiple penetration_anima_V1.0.safetensors">multiple penetrations</option><option value="辅助Lora\photontr_anima_3459457_epoch_7.safetensors">NTR Netorare: Cheating Sex Behind the Wedding Photo</option><option value="辅助Lora\Ntrwife_anima_3447538_epoch_7.safetensors">NTR Netorare: Stealth Sex Beside Her Husband</option><option value="辅助Lora\ntr_picture_anima.safetensors">NTR Picture / Secret Picture</option><option value="辅助Lora\NTRedwife.safetensors">NTR POV Netorase, Netorare, Cuckold for ANIMA</option><option value="辅助Lora\passionate_epoch_10.safetensors">Passionate Standing Sex</option><option value="辅助Lora\passionate_epoch_10-1.safetensors">Passionate Standing Sex</option><option value="辅助Lora\passivekiss_anima_v1.safetensors">Passive Kiss / 女性が受動的なキス [Anima]</option><option value="辅助Lora\perky_round_breasts_anima_v1.safetensors">Perky Breasts with Implants and High Nipples (Anima + IL)</option><option value="辅助Lora\pov_breastsAnimaTE.safetensors">Pov breasts</option><option value="辅助Lora\paizuri_twsited_epoch_10.safetensors">POV Paizuri-Twisted Breasts | LoRA</option><option value="辅助Lora\pressing_sex_anima_anima_3276770_epoch_10.safetensors">pressing sex (anima) - missionary &amp; dpggy style</option><option value="辅助Lora\anima-prone bone (pov).safetensors">Prone bone (POV)</option><option value="辅助Lora\resist_sex__anima__epoch_9.safetensors">pushing away (anima, illustrious)</option><option value="辅助Lora\pussy_grip_v0.0.3-000002.safetensors">Pussy grip</option><option value="辅助Lora\ripping_clothes_anima_epoch_10.safetensors">ripping clothes (anima)</option><option value="辅助Lora\daos_lora_lora-000005.safetensors">secretly photographed</option><option value="辅助Lora\silhouette_sex_epoch_10.safetensors">Silhouette Sex | LoRA</option><option value="辅助Lora\SmashDaisaku_Style_Anima_V01.safetensors">Smash Daisaku Style (stomach bulge) huge penis insertion | スマッシュ代作 スタイル 腹ボコォ！拡張セックス</option><option value="辅助Lora\Sperm_Circle_Tattoo_anima_v1.safetensors">Sperm Circle Tattoo + QOS tattoo [Anima]</option><option value="辅助Lora\_spreadanus_epoch_10.safetensors">Spread Anus / Spread Ass (Anima/Illustrious)</option><option value="辅助Lora\ssfb_anima-step00002600.safetensors">Squatting doggystyle</option><option value="辅助Lora\tentacle_tweak_under_clothes-anima-v1.safetensors">tentacle_tweak_under_clothes-anima</option><option value="辅助Lora\living_onahole_anima.safetensors">Thigh Grab Lifting sex</option><option value="辅助Lora\torn.safetensors">Torn Clothes Slider</option><option value="辅助Lora\x-ray_deepthroat_V1_Anima.safetensors">X-ray Deepthroat fellatio oral | Anima |Illustrious</option><option value="辅助Lora\clothing aside_anima_V1.0.safetensors">クロッチずらし/panties aside(XL,Pony)</option><option value="辅助Lora\guided penetration_anima_V1.0.safetensors">セルフ挿入/guided penetration(ill,pony)</option><option value="辅助Lora\sex from behind_anima_V1.0.safetensors">バックセックス/sex from behind(ill,pony)</option><option value="辅助Lora\fingering_anima_V1.0.safetensors">フィンガリング/fingering</option><option value="辅助Lora\cooperative fellatio_anima_V1.0.safetensors">フェラチオ(複数)/cooperative fellatio(XL,pony)</option><option value="辅助Lora\fellatio and masturbation.safetensors">フェラチオとオナニー/ fellatio and masturbation</option><option value="辅助Lora\pet play_anima_V1.0.safetensors">ペットプレイ/pet play</option><option value="辅助Lora\concept_erotic_squat.safetensors">ポルノスクワット Porn squatting</option><option value="辅助Lora\pussy juice_anima_V1.0.safetensors">マン汁/pussy juice</option><option value="辅助Lora\grabbing breasts_anima_V1.1.safetensors">乳もみ/grabbing breasts</option><option value="辅助Lora\nipple chain_anima_V1.0.safetensors">乳首チェーン/nipples chain(SD,XL,Pony)</option><option value="辅助Lora\nipple pull_anima_V1.0.safetensors">乳首責め/nipple pull</option><option value="辅助Lora\vibrator under clothes_anima_V1.0.safetensors">仕込みローター/ vibrator under clothes(ILL,pony)</option><option value="辅助Lora\public_sexANIMA.safetensors">公開セックス public sex (ANIMA)</option><option value="辅助Lora\cervix penetration_anima_V1.0.safetensors">子宮貫通/deep penetration</option><option value="辅助Lora\corruption_anima_V1.0.safetensors">悪落ち/corruption</option><option value="辅助Lora\pantyshot under desk_anima_V1.0.safetensors">机の下\pantyshot under desk</option><option value="辅助Lora\cheek bulge fellatio_anima_V1.0.safetensors">歯磨きフェラ/cheek bulge fellatio</option><option value="辅助Lora\female ejaculation_anima_V1.0.safetensors">潮吹き/ female ejaculation</option><option value="辅助Lora\breasts view from behind_anima_V1.0.safetensors">胸ちら(後ろから)/breasts view from behind</option><option value="辅助Lora\guided grab breasts_anima_V1.0.safetensors">胸をもませる/guided breast grab(ill,pony)</option><option value="辅助Lora\naked ribbon.safetensors">裸リボン/naked ribbon(SD,XL,ill,pony)</option><option value="辅助Lora\stealth sex door_anima_V1.0.safetensors">隠姦(ドア)/stealth sex(door)</option><option value="辅助Lora\ekiben_anima_V1.0.safetensors">駅弁/suspended congress</option></select><input id="advAuxW" class="adv-weight" type="number" min="0" max="2" step="0.05" placeholder="权重"></label>
+      <label class="field"><span>服装</span><input class="adv-q" data-q-target="#advOutfit" data-q-slot="outfit" placeholder="搜服装 LoRA" autocomplete="off"><select id="advOutfit"><option value="">无</option><option value="服装\harness_anima_V1.0.safetensors">ハーネス/harness(SD,XL,pony)</option><option value="服装\babydoll.safetensors">セクシーランジェリー/babydoll,sexy lingerie(SD,ILL,pony)</option><option value="服装\fishnet_bodystocking_anima_goofy.safetensors">Fishnet bodystocking | Goofy Ai</option><option value="服装\Princess Corruption.safetensors">[Anim] Princess Corruption</option><option value="服装\Hentai_StringOnlyBikini_Anima.safetensors">String Only Bikini (Real &amp; Anime) ANIMA / KR2 | 紐だけビキニ (リアル＆アニメ両方対応)</option><option value="服装\sexy traditional chinese-style outfit (7in1)03206464144a_18.safetensors">[Anima] [7-in-1] Sexy traditional chinese-style outfit | 七合一古风情趣套装</option><option value="服装\nano_slingshot_bikini_anima_goofy.safetensors">Nano slingshot bikini</option><option value="服装\attire_trickortreatmentcosplay_animaBaseV1.safetensors">[Anima v1.0] Florence Nightingale's Trick or Treatment Cosplay | Attire</option><option value="服装\Love Mary Lapis.safetensors">[Anima] Love Mary Lapis Outfit</option><option value="服装\Love Mary Stella.safetensors">[Anima] Love Mary Stella Outfit</option><option value="服装\Mahou Shoujo Possesion [Popura Style].safetensors">[Anima] Mahou Shoujo Possession [Popura Style]</option><option value="服装\TS Mahou Shoujo Corruption.safetensors">[Anima] Ts Mahou Shoujo Corruption Form</option><option value="服装\TS Mahou Shoujo Saint Cherry.safetensors">[Anima] TS Mahou Shoujo Saint Cherry</option><option value="服装\see-though China dressANI - vDyzn.safetensors">[CLOTHING] See-through China Babydoll  Dress / シースルー・チャイナ・ベビードール</option><option value="服装\gag_test_2-step00002750.safetensors">All gags (ball gag, harness, ring gag, plug gag, slime gag, dildo mask, bit gag, shared gag)</option><option value="服装\Anima_sailor_leotard_v1.4.safetensors">Anima LoRA sailor leotard</option><option value="服装\Anima_super_highleg_v3.3.safetensors">Anima LoRA super highleg</option><option value="服装\haiqing AnimaB Sqq v1.safetensors">Astral party - Haiqing (jiangshi) and Cosplay</option><option value="服装\BlackBirdCutoutLeotardAnima.safetensors">Black Bird Cutout Leotard</option><option value="服装\CagedDemonsUnderbustDressAnima.safetensors">Caged Demons Underbust Dress</option><option value="服装\CheongsamStreetwearDressAnima.safetensors">Cheongsam Streetwear Dress</option><option value="服装\chinese style sexy lingerie2 03152424142a_15.safetensors">Chinese Style Sexy Lingerie 2</option><option value="服装\knmp_068_Tentacle_clothing_01.safetensors">Corruption Tentacle clothing 01 悪堕ち触手服01 /knmp_068_tentacleclothe_01</option><option value="服装\cute blue layered short dress04202424142a_15.safetensors">Cute blue layered short dress</option><option value="服装\CuteMaidCroptopMiniskirtAnima.safetensors">Cute Maid Croptop Miniskirt</option><option value="服装\CyberNekoBikiniAnima.safetensors">Cyber Neko Bikini</option><option value="服装\dontan2.safetensors">dontan dress (tight dress)</option><option value="服装\dudou-anima.safetensors">dudou-anima; 肚兜</option><option value="服装\EvolvedVirginKillerSweaterAnima.safetensors">Evolved Virgin Killer Sweater</option><option value="服装\fishnet_bra_anima_goofy.safetensors">Fishnet Bra | Goofy Ai</option><option value="服装\Anima_Harem_Outfit.safetensors">Harem Outfit</option><option value="服装\Anima_Paipai_Mask-10.safetensors">Houshou Marine Paipai Mask 2 Outfits (Hololive)</option><option value="服装\lace_clothing__outfit__epoch_10.safetensors">lace clothing (outfit)</option><option value="服装\LatexMeshFrilledLeotardAnima.safetensors">Latex &amp; Mesh Frilled Leotard</option><option value="服装\LatexGummiDressAnima.safetensors">Latex Gummi Dress</option><option value="服装\lawsonuniform_anima_v1.safetensors">lawson uniform / ローソン制服 / コンビニ</option><option value="服装\naon_yuno_(anima).safetensors">LoRA / Anima / Yuno Naon from ⁨⁨Mato Seihei no Slave (Cosplay+Character)</option><option value="服装\MekaMaidLingerieAnima.safetensors">Maid Costumes - Meka Maid</option><option value="服装\MicroSkirt_Mabusius_Anima_v1.safetensors">Micro skirt (Pony/Illustrious/Anima)</option><option value="服装\MidnightsEmbraceMeshBodysuitAnima.safetensors">Midnights Embrace Mesh Bodysuit</option><option value="服装\Demonlord Armor Anima Sqq V1.safetensors">Monster Hunter - Demonlord Armor (EX魔界ノ主 装備)</option><option value="服装\BSp34rsSch00l_Anima_v10.safetensors">Ms. Spears' Schoolgirl Look</option><option value="服装\potari_shrine_maidenAnima.safetensors">Potari Shrine Maiden</option><option value="服装\qixiong ruqunV2-best-000004.safetensors">qixiong ruqun | 齐胸襦裙</option><option value="服装\ryan_bnysuit_A.safetensors">Reversed bunnysuit by Ryan Reos [Anima/Illustrious/Pony]</option><option value="服装\Rietta_Slutty_Nun_Outfits_anima_v1-000032.safetensors">Rietta's Slutty Nun Costume [Anima/IL]</option><option value="服装\tivur_ioblrmoet_eefirchauha.safetensors">rio_(blue_archive) harem_outfit [pony, ill, ANIMA]</option><option value="服装\SGCSeeThroughAnima.safetensors">School Girl Costumes - See-Through Serafuku</option><option value="服装\SeeThroughCheongsamAnima.safetensors">See-Through Cheongsam</option><option value="服装\see-through-silhouette-anima-lora-nochekaiser.safetensors">See-Through Silhouette - Clothing</option><option value="服装\knmp_005_seishori_anima.safetensors">seishorika cos/性処理課制服　KNMP_005</option><option value="服装\knmp_067_bottaisaki_saki.safetensors">SEX POLICE Bokki Taisakubu＜勃起対策部＞宇都宮沙希の日常/knmp_067_bottaisaki_saki</option><option value="服装\Sexy Asassine_ANIMA.safetensors">Sexy Assassin Cloth [Blade &amp; Soul]</option><option value="服装\Sexy bondage outfit2 03102424142a.safetensors">Sexy bondage outfit 2 [IL, Anima]</option><option value="服装\SexyFlightAttendantLingerieAnima.safetensors">Sexy Flight Attendant Lingerie</option><option value="服装\Sexy miko clo-000030.safetensors">Sexy miko clothes</option><option value="服装\sexy midriff  latex nun outfit04253232142a_17.safetensors">Sexy nun outfit 1</option><option value="服装\Sexy lady.safetensors">Sexy Succubus Cloth [Mabinogi : Heros]</option><option value="服装\SheerKimonoAnima.safetensors">Sheer Kimono</option><option value="服装\SheerLeotardAnima.safetensors">Sheer Leotard</option><option value="服装\shiny pantyhose 2.safetensors">Shiny pantyhose 油亮丝袜 【anima】</option><option value="服装\slavekini_anima.safetensors">Slavekini, aka Slave Leia Outfit - Clothing [Krea2, Anima, IL, Pony, SDXL]</option><option value="服装\sling_swimsuit.safetensors">Sling Swimsuit / sling one-piece swimsuit  [サイドカットスク水]</option><option value="服装\slingshotAnima.safetensors">Slingshot swimsuit [SD1.5/Pony/Illustrious/Anima]</option><option value="服装\SpicyHotMeshHalterLeotardAnima.safetensors">Spicy Hot Mesh Halter Leotard</option><option value="服装\Succubus Cheer Outfit Lucky Star-step00000900.safetensors">Succubus Cheer Uniform - Lucky Star Outfit</option><option value="服装\TangDynastyHanfuAnima.safetensors">Tang Dynasty Hanfu</option><option value="服装\translucent-bunnysuit-anima-lora-nochekaiser.safetensors">Translucent Bunnysuit - Clothing</option><option value="服装\clothing_raincoat.safetensors">transparent raincoat</option><option value="服装\UMBAnimaV1.safetensors">Ultra Micro Bikini/Slingshot Swimmsuit</option><option value="服装\venus_noreg.safetensors">Venus bikini</option><option value="服装\WidowGothicLaceGownAnima.safetensors">Widow Gothic Lace Gown</option><option value="服装\x micro bikini_anima_V1.0.safetensors">X字マイクロビキニ/X micro bikini</option><option value="服装\y_string_dress_anima.safetensors">y-string dress</option><option value="服装\jiangshi_clothes.safetensors">Zombie Girl Costume(端午节的节日食品)</option><option value="服装\unusualnurse_anima.safetensors">【COSTUME】Unusual Nurse by Ruanyi</option><option value="服装\YD-dacner-outfit-Prodigy-anima-v1-000008.safetensors">【Costume】yd_dancer_outfit/Zettai Mash Sensen(Fate/Grand Order)|YD型踊り子衣装/絶対マシュ戦線 (Fate/Grand Order)|YD舞娘服饰/绝对玛修战线</option><option value="服装\garter belt_anima_V1.0.safetensors">ガーターベルト/garter belt(SD,XL,ILL,pony)</option><option value="服装\CrimsonRiders_Broken_Doaxvv_Anima_v1.safetensors">クリムゾン・ライダース / Crimson Riders - DOAXVV 2 Outfit (Anima)</option><option value="服装\SheerMulle_Doaxvv_Anima_v1.safetensors">シアー・ムール / Sheer Mulle - DOAXVV Outfit (Anima)</option><option value="服装\sprots bra_anima_V1.0.safetensors">スポーツブラ/sports bra(XL,ILL,pony)</option><option value="服装\whale tail_anima_V1.0.safetensors">ホエールテイル/whale tail(clothing)</option><option value="服装\bondage outfit_anima_V1.0.safetensors">ボンデージ衣装/bondage outfit（XL,ILL,pony)</option><option value="服装\maid bikini_anima_V1.0.safetensors">メイドビキニ/maid bikini</option><option value="服装\jiraikei_anima_V1.0.safetensors">地雷系/jirai kei</option><option value="服装\girl underwear_anima_V1.0.safetensors">女児下着/girl's underwear(XL,ill,Pony)</option><option value="服装\girl clothes_anima_V1.0.safetensors">女児服/girl's clothes(XL,ill,Pony)</option><option value="服装\slave clothes_anima_V1.0.safetensors">奴隷服/slave clothes</option><option value="服装\serafuku_anima_V1.0.safetensors">学生服/serafuku</option><option value="服装\Evening dress2.safetensors">晚礼服</option><option value="服装\YukataMIzugi_DW_Anima_v1.safetensors">浴衣水着 / Yukata Mizugi - Dolphin Wave Outfit (Anima)</option><option value="服装\hanfu_anima_V1.0.safetensors">漢服/Hanfu(XL,ill,Pony)</option><option value="服装\deep black pantyhose_anima_V1.0.safetensors">濃い黒パンスト/deep black pantyhose</option><option value="服装\wet clothes_anima_V1.0.safetensors">濡れた服/wet clothes</option><option value="服装\virgin killer sweater_anima_V1.0.safetensors">童貞を殺すセーター/virgin killer sweater(XL,pony)</option><option value="服装\competitive swimsuit_anima_V1.0.safetensors">競泳水着/competitive swimsuit(SD,XL,ill,pony)</option><option value="服装\lowleg-anima.safetensors">超ローライズショーツ / Super lowleg panties</option></select><input id="advOutfitW" class="adv-weight" type="number" min="0" max="2" step="0.05" placeholder="权重"></label>
+      <label class="field"><span>画风</span><input class="adv-q" data-q-target="#advStyle" data-q-slot="style" placeholder="搜画风 LoRA" autocomplete="off"><select id="advStyle"><option value="">无</option></select><input id="advStyleW" class="adv-weight" type="number" min="0" max="2" step="0.05" placeholder="权重"></label>
+    </div>
+    <div class="adv-sec">
+      <h3>词</h3>
+      <label class="field"><span>正面</span><textarea id="advScene" rows="4"></textarea></label>
+      <label class="field"><span>负面</span><textarea id="advNeg" rows="3"></textarea></label>
+      <div class="adv-acts"><button id="advNegDefault" class="mini">默认负面</button><button id="advNegEmpty" class="mini">清空</button></div>
+    </div>
+    <div class="adv-sec">
+      <h3>场景 / 服装 / 动作</h3>
+      <label class="field"><span>场景</span><select id="advSemScene"><option value="">不选</option><option value="classroom">教室</option><option value="bedroom">卧室</option><option value="bathroom">浴室</option><option value="swimming pool">泳池</option><option value="beach">海边</option><option value="street">街道</option><option value="park">公园</option><option value="cafe">咖啡厅</option><option value="library">图书馆</option><option value="shrine">神社</option><option value="castle">城堡</option><option value="ruins">废墟</option><option value="snowy field">雪地</option><option value="rain">雨中</option><option value="night street">夜晚街道</option><option value="forest">森林</option><option value="rooftop">天台</option><option value="car interior">车内</option><option value="gym">健身房</option><option value="office">办公室</option><option value="garden">庭院</option><option value="riverside">河边</option><option value="convenience store">便利店</option><option value="cinema">电影院</option><option value="museum">博物馆</option><option value="school hallway">学校走廊</option><option value="music room">音乐教室</option><option value="art room">美术教室</option><option value="flower field">花田</option><option value="campsite">露营地</option><option value="dorm room">宿舍</option><option value="bus interior">巴士</option><option value="rooftop night">天台夜景</option><option value="shrine night">神社夜晚</option><option value="living room night">夜晚客厅</option><option value="pool night">泳池夜晚</option><option value="elevator">电梯</option><option value="parking garage">停车场</option><option value="tent">帐篷</option><option value="library night">图书馆夜晚</option><option value="public bath">浴场</option><option value="backstage">演出后台</option></select></label>
+      <label class="field"><span>服装</span><select id="advSemOutfit"><option value="">不选</option><option value="school uniform">校服</option><option value="sailor uniform">水手服</option><option value="swimsuit">泳装</option><option value="pajamas">睡衣</option><option value="maid outfit">女仆装</option><option value="cheongsam">旗袍</option><option value="wedding dress">婚纱</option><option value="uniform">制服</option><option value="gym clothes">运动服</option><option value="kimono">和服</option><option value="bunny suit">兔女郎</option><option value="black pantyhose">黑丝</option><option value="white pantyhose">白丝</option><option value="lingerie">内衣</option><option value="undressed">半脱</option><option value="nude">裸体</option><option value="sundress">吊带连衣裙</option><option value="hoodie">连帽衫</option><option value="coat">大衣</option><option value="school swimsuit">学校泳装</option><option value="sports bra">运动内衣</option><option value="leggings">瑜伽裤</option><option value="stage costume">演出服</option><option value="crotchless lingerie">开裆内衣</option><option value="latex">乳胶</option><option value="fishnet">渔网</option><option value="yukata">浴衣</option><option value="apron">围裙</option><option value="trench coat">风衣</option><option value="wet clothes">湿衣</option></select></label>
+      <label class="field"><span>姿势</span><select id="advSemPose"><option value="">不选</option></select></label>
+      <label class="field"><span>动作</span><select id="advSemAction"><option value="">不选</option></select></label>
+    </div>
+    <div class="adv-sec">
+      <h3>参数</h3>
+      <div class="adv-3">
+        <label class="field"><span>步数</span><input id="advSteps" type="number" min="1" max="80" value="28"></label>
+        <label class="field"><span>CFG</span><input id="advCfg" type="number" min="1" max="20" value="4"></label>
+        <label class="field"><span>seed</span><input id="advSeed" type="number" value="-1"></label>
+      </div>
+      <div class="adv-2">
+        <label class="field"><span>采样器</span><select id="advSampler">
+          <option value="euler">euler</option>
+          <option value="euler_ancestral">euler_ancestral</option>
+          <option value="dpmpp_2m">dpmpp_2m</option>
+          <option value="dpmpp_2m_sde">dpmpp_2m_sde</option>
+          <option value="dpmpp_3m_sde">dpmpp_3m_sde</option>
+          <option value="ddim">ddim</option>
+          <option value="uni_pc">uni_pc</option>
+        </select></label>
+        <label class="field"><span>调度器</span><select id="advScheduler">
+          <option value="normal">normal</option>
+          <option value="karras">karras</option>
+          <option value="exponential">exponential</option>
+          <option value="sgm_uniform">sgm_uniform</option>
+          <option value="simple">simple</option>
+          <option value="beta">beta</option>
+        </select></label>
+      </div>
+    </div>
+    <div class="adv-sec">
+      <h3>两段式</h3>
+      <label class="checkline"><input id="advTwoPass" type="checkbox"> 开启（第一段出图 → 第二段图生图）</label>
+      <label class="field"><span>第二段模型</span><select id="advModel2"><option value="checkpoint:anime\anima-base-v1.0.safetensors">整包 · anime\anima-base-v1.0.safetensors</option><option value="checkpoint:anime\anima-turbo-v1.1.safetensors">整包 · anime\anima-turbo-v1.1.safetensors</option><option value="checkpoint:anime\miaomiao-harem-anima-2.9b.safetensors">整包 · anime\miaomiao-harem-anima-2.9b.safetensors</option><option value="checkpoint:anime\nova3DCGAM_v3029B.safetensors">整包 · anime\nova3DCGAM_v3029B.safetensors</option><option value="checkpoint:anime\reedAnimaXXX_v14.safetensors">整包 · anime\reedAnimaXXX_v14.safetensors</option><option value="checkpoint:anime\uwumerge-anima-v9.safetensors">整包 · anime\uwumerge-anima-v9.safetensors</option><option value="checkpoint:sdxl\NoobAI-XL-VPred-1.0.safetensors">整包 · sdxl\NoobAI-XL-VPred-1.0.safetensors</option><option value="checkpoint:sdxl\WAI-illustrious-SDXL-v17.safetensors">整包 · sdxl\WAI-illustrious-SDXL-v17.safetensors</option><option value="unet:Anima-2.9B-preview-v1.safetensors">unet · Anima-2.9B-preview-v1.safetensors</option><option value="unet:JANIMA29b_V1.1_bf16.safetensors">unet · JANIMA29b_V1.1_bf16.safetensors</option><option value="unet:SilvermoonMix-Anima29B-Evolved-V2.3.safetensors">unet · SilvermoonMix-Anima29B-Evolved-V2.3.safetensors</option><option value="unet:anima-base-v1.0.safetensors">unet · anima-base-v1.0.safetensors</option><option value="unet:anima-turbo-v1.1.safetensors">unet · anima-turbo-v1.1.safetensors</option><option value="unet:lustify-v10-krea-turbo-fp8.safetensors">unet · lustify-v10-krea-turbo-fp8.safetensors</option><option value="unet:miaomiao-harem-anima-2.9b.safetensors">unet · miaomiao-harem-anima-2.9b.safetensors</option><option value="unet:nova3DCGAM_v3029B.safetensors">unet · nova3DCGAM_v3029B.safetensors</option><option value="unet:reedAnimaXXX_v14.safetensors">unet · reedAnimaXXX_v14.safetensors</option><option value="unet:uwumerge-anima-v9.safetensors">unet · uwumerge-anima-v9.safetensors</option><option value="unet:wan2.2_ti2v_5B_fp16.safetensors">unet · wan2.2_ti2v_5B_fp16.safetensors</option></select></label>
+      <div class="adv-2">
+        <label class="field"><span>强度</span><select id="advStrength">
+          <option value="light">轻（保留更多原图）</option>
+          <option value="mid" selected="">中</option>
+          <option value="strong">重（变化更大）</option>
+        </select></label>
+        <label class="field"><span>第二段画风 LoRA</span><input class="adv-q" data-q-target="#advStyle2" data-q-slot="style" placeholder="搜画风 LoRA" autocomplete="off"><select id="advStyle2"><option value="">无</option></select><input id="advStyle2W" class="adv-weight" type="number" min="0" max="2" step="0.05" placeholder="权重"></label>
+      </div>
+      <label class="field"><span>第二段补充词</span><textarea id="advScene2" rows="2"></textarea></label>
+    </div>
+  </div>
+  <div class="adv-foot"><button id="advRun" class="primary">用这些参数出图</button></div>
+</aside>
+
+<aside id="detail" class="detail hidden">
+  <div class="detail-head"><b id="detailTitle">详情</b><button id="detailClose" class="mini">关闭</button></div>
+  <div id="detailBody" class="detail-body"></div>
+</aside>
+
+<div id="toast" class="toast hidden"></div>
+<div id="imgViewer" class="gate hidden">
+  <div class="viewer-card">
+    <img id="viewerImg" src="" alt="" draggable="false">
+    <div class="viewer-tools">
+      <button id="viewerZoomOut" class="mini">－</button>
+      <span id="viewerZoomLabel" class="hint">100%</span>
+      <button id="viewerZoomIn" class="mini">＋</button>
+      <button id="viewerReset" class="mini">1:1</button>
+    </div>
+    <a id="viewerOpen" class="mini viewer-open" href="#" target="_blank" rel="noreferrer">浏览器打开</a>
+  </div>
+</div>
+<div id="wfModal" class="gate hidden">
+  <div class="gate-card picker-card">
+    <div class="picker-head"><b>工作流管理</b><button id="wfModalClose" class="mini">关闭</button></div>
+    <div id="wfList" class="wf-list"><div class="skeleton">读取…</div></div>
+    <pre id="wfJson" class="wf-json hidden"></pre>
+  </div>
+</div>
+
+<script src="/v2/i18n.js?v=202611242102"></script>
+<script src="/v2/app.js?v=202611250042"></script>
+
+
+</body></html>

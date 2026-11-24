@@ -1,0 +1,17 @@
+{
+  "name": "lora-library-desktop",
+  "productName": "洛栈 LoRA-Vault",
+  "version": "1.0.0",
+  "private": true,
+  "description": "洛栈 · LoRA-Vault — 本地 LoRA 管理器",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "install-app": "node build/install.mjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "18.3.6",
+    "electron": "31.7.7",
+    "rcedit": "^5.0.1"
+  }
+}

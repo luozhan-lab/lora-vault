@@ -1,0 +1,420 @@
+/**
+ * 词表分类：给 build-wordbank.mjs 用。
+ *
+ * 规则按优先级排，先到先得；一次判下来就定类。
+ * 名字里的下划线和空格等价（long_hair == long hair），先归一化再判。
+ * 目标：other 控制在 3000 以下（早期版本是 14554，筛选基本没法用）。
+ */
+
+const clean = (n) => String(n).toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+
+const escapeRe = (w) => w.replace(/[^a-z0-9 \\-]/g, (c) => '\\' + c);
+
+const toRe = (words) => new RegExp('(^|\\s)(' + words.map(escapeRe).join('|') + ')(\\s|$)', 'i');
+
+const LISTS = {
+  /* 成人向单独一类：默认折叠，不跟 body 混 */
+  adult: [
+    'cum', 'cumdrip', 'semen', 'sperm', 'precum', 'penis', 'phallus', 'testicles', 'testicle', 'erection',
+    'foreskin', 'phimosis', 'vagina', 'vaginal', 'pussy', 'pussy juice', 'vulva', 'clitoris', 'clit',
+    'clitoral stimulation', 'anus', 'anal', 'anilingus', 'sex', 'intercourse', 'penetration', 'fellatio',
+    'irrumatio', 'oral', 'deepthroat', 'paizuri', 'handjob', 'footjob', 'buttjob', 'masturbation', 'fingering',
+    'fingered', 'ejaculation', 'ejaculating', 'orgasm', 'creampie', 'cum in pussy', 'futanari', 'dickgirl',
+    'newhalf', '1futa', 'tentacle', 'tentacles', 'dildo', 'vibrator', 'condom', 'condoms', 'bondage', 'shibari',
+    'bound', 'restrained', 'restraints', 'handcuffs', 'shackles', 'ahegao', 'lewd', 'nsfw', 'hentai', 'oppai',
+    'nakadashi', 'bukkake', 'gangbang', 'threesome', 'orgy', 'group sex', 'public sex', 'public nudity',
+    'public indecency', 'exhibitionism', 'flashing', 'upskirt', 'up skirt', 'panty pull', 'panty peek',
+    'pantylines', 'downblouse', 'exposed midriff', 'erotic', 'pornography', 'rape', 'raped', 'netorare', 'ntr',
+    'mind break', 'mind control', 'incest', 'bestiality', 'prostitution', 'chikan', 'defloration', 'impregnation',
+    'fertilization', 'pregnant', 'implied pregnancy', 'lactation', 'milking', 'projectile lactation', 'shaft look',
+    'just the tip', 'large insertion', 'object insertion', 'vaginal object insertion', 'mating press', 'prone bone',
+    'full nelson', 'spitroast', 'girl on top', 'boy on top', 'doggystyle', 'missionary', 'cowgirl position',
+    'reverse cowgirl position', 'upright straddle', 'reverse upright straddle', '69', 'squirting', 'peeing', 'pee',
+    'public use', 'humiliation', 'femdom', 'dominatrix', 'bdsm', 'submission', 'strangling', 'asphyxiation',
+    'suspension', 'gag', 'gagged', 'gagging', 'chastity', 'after sex', 'sexually suggestive', 'suggestive fluid',
+    'aroused', 'in heat', 'multiple penises', 'surrounded by penises', 'pubic hair', 'female pubic hair', 'bush',
+    'shaved', 'cameltoe', 'crotchless', 'pasties', 'maebari', 'areola', 'areolae', 'underboob', 'sideboob',
+    'backboob', 'cleft of venus', 'fat mons', 'mons pubis', 'perineum', 'nipple', 'nipples', 'puffy nipples',
+    'cream pie', 'gokkun', 'sumata', 'onahole', 'strap-on', 'fisting', 'spanking', 'face sitting', 'face-sitting',
+    'fucked silly', 'instant loss', 'corruption', 'hypnosis', 'sleep molestation', 'sex toy', 'womb', 'cervix',
+    'urethra', 'gaping', 'imminent vaginal', 'imminent rape', 'sexual', 'dirty',
+  ],
+
+  /* 人数 / 主体 */
+  subject: [
+    'bird', 'cat', 'dog', 'fish', 'rabbit', 'wolf', 'fox', 'snake', 'crab', 'crow', 'dove', 'penguin', 'seagull', 'butterfly', 'bug', 'jellyfish', 'horse', 'chick', 'snowman', 'virtual youtuber', 'otoko no ko', 'duo', 'trio', 'group',
+    '1girl', '2girls', '3girls', '4girls', '5girls', '6 girls', '6+girls', 'multiple girls', '1boy', '2boys',
+    '3boys', '4boys', '5boys', '6+boys', 'multiple boys', '1other', '2others', 'no humans', 'solo', 'solo focus',
+    'multiple others', 'male', 'female', 'intersex', 'androgynous', 'furry', 'anthro', 'animal', 'creature',
+    'monster', 'robot', 'mecha', 'cyborg', 'android', 'chibi', 'child', 'adult', 'loli', 'shota', 'mature female',
+    'muscular male', 'muscular', 'giant', 'giantess', 'mini person', 'minigirl', 'miniboy', 'people', 'crowd',
+    'couple', 'siblings', 'twins', 'sisters', 'brother and sister', 'mother and daughter', 'another character',
+    'other focus', 'borrowed character', 'borrowed design', 'personification', 'cosplay', 'genderswap',
+    'genderswap (mtf)', 'reverse trap', 'age difference', 'size difference', 'height difference', 'aged up',
+    'aged down', 'old', 'old man', 'old woman', 'baby', 'chibi', 'kemonomimi', 'furry', 'animalization',
+  ],
+
+  /* 机位 / 构图 / 画面文字 */
+  composition: [
+    'motion blur', 'cross-section', 'cutaway',
+    'from above', 'from below', 'from behind', 'from side', 'from front', 'from above', 'looking at viewer',
+    'looking away', 'looking back', 'looking up', 'looking down', 'looking to the side', 'looking ahead',
+    'looking afar', 'looking outside', 'looking over shoulder', 'looking over eyewear', 'shot', 'cowboy shot',
+    'full body', 'upper body', 'lower body', 'portrait', 'close-up', 'close up', 'wide shot', 'medium shot',
+    'long shot', 'dutch angle', 'pov', 'first person', 'first-person', 'perspective', 'foreshortening', 'framing',
+    'out of frame', 'out of-frame', 'cropped', 'border', 'letterboxed', 'pillarboxed', 'depth of field', 'bokeh',
+    'blurry background', 'simple background', 'white background', 'black background', 'gradient background',
+    'transparent background', 'background', 'foreground', 'silhouette', 'profile', 'three-quarter', 'symmetry',
+    'panorama', 'zoom', 'fisheye', 'tilted', 'rotation', 'upside down', 'layout', 'panel', '2koma', '3koma',
+    'comic', 'manga', 'text', 'speech bubble', 'thought bubble', 'spoken', 'emphasis lines', 'motion lines',
+    'speed lines', 'afterimage', 'reference inset', 'request inset', 'screenshot inset', 'game screenshot inset',
+    'character censor', 'identity censor', 'convenient censoring', 'pointless censoring', 'pixelated',
+    'blank censor', 'steam censor', 'blur censor', 'bar censor', 'mosaic censoring', 'out-of-frame censoring',
+    'novelty censor', 'logo', 'watermark', 'signature', 'artist name', 'username', 'twitter username',
+    'patreon username', 'web address', 'copyright name', 'copyright notice', 'company name', 'brand name imitation',
+    'pixiv id', 'comiket', 'skeb', 'commission', 'dated', 'ai-generated', 'screencap', 'anime screencap',
+    'game screenshot', 'multiple views', 'multi views', 'character sheet', 'infographic', 'inset', 'split screen',
+    'split frame', 'action lines', 'sound effects', 'impact lines', 'halftone', 'screentone', 'collage', 'map',
+    'subtitled', 'chinese commentary', 'translation', 'commentary', 'notice lines', 'squiggle', 'spoken question mark',
+    'spoken exclamation mark', 'spoken ellipsis', 'spoken squiggle', 'spoken interrobang', 'spoken character',
+    'spoken musical note', 'spoken object', 'caption', 'title', 'barcode', 'qr code',
+  ],
+
+  /* 画质 / 风格 */
+  quality: [
+    'parody', 'meme', 'meme attire', 'doujin cover', 'cover page', 'cover', 'illustration', 'tachi-e', 'fine fabric emphasis', 'shade', 'formal', 'casual', 'contemporary', 'reflective surface', 'moody atmosphere', 'serene atmosphere', 'alternate color', 'artistic error', 'multiple expressions', 'source smaller', 'third-party edit', 'commissioner name', 'alternate universe', 'artist self-insert', 'crossdressing', 'genderswap', 'yuri', 'yaoi', 'hetero', 'interracial', 'interspecies', 'x-ray', 'glitch', 'x-ray', 'guide', 'guide book', 'diagram',
+    'masterpiece', 'best quality', 'high quality', 'highres', 'lowres', 'absurdres', 'ultra detailed',
+    'highly detailed', 'detailed', 'realistic', 'photorealistic', 'monochrome', 'greyscale', 'grayscale', 'sepia',
+    'sketch', 'lineart', 'line art', 'clean line art', 'anime coloring', 'flat color', 'flat colors', 'cel shading',
+    'painterly', 'watercolor', 'oil painting', 'pixel art', 'pixelated', '3d', 'render', 'photo', 'scan', 'censored',
+    'uncensored', 'jpeg artifacts', 'noise', 'grain', 'chromatic aberration', 'vignetting', 'blurry', 'sharp focus',
+    'soft shading', 'muted colors', 'vibrant colors', 'spot color', 'muted color', 'heavy outline', 'outline',
+    'white outline', 'jaggy lines', 'ligne claire', 'texture', 'brushwork', 'official art', 'official style',
+    'artstyle', 'art style', 'anime style', 'retro artstyle', 'style parody', 'reference', 'oekaki', 'tegaki',
+    'doodle', 'traditional media', 'mixed media', 'limited palette', 'color guide', 'colorful', 'shiny', 'glossy',
+    'gloss', 'gradient', 'pattern', 'patterned', 'two-tone', 'official', 'revision', 'has bad revision',
+    'one-hour drawing challenge', 'still life', 'photo (medium)', 'pen (medium)', 'marker (medium)',
+    'painting (object)', 'drawing (object)', 'anime', 'cartoon', 'fanart', 'original', 'imitation',
+  ],
+
+  /* 身份 / 风格标签 */
+  style: [
+    'yandere', 'tsundere', 'kuudere', 'gyaru', 'kogal', 'jk', 'bishounen', 'ojou', 'ojou-sama', 'mesugaki',
+    'tomboy', 'shortstack', 'lolita', 'gothic lolita', 'jirai kei', 'fashion', 'military', 'victorian',
+    'cyberpunk', 'steampunk', 'knight', 'ninja', 'miko', 'shrine maiden', 'nurse', 'maid', 'waitress', 'police',
+    'policewoman', 'flight attendant', 'cheerleader', 'idol', 'princess', 'bride', 'ballerina', 'witch',
+    'magical girl', 'vampire', 'werewolf', 'zombie', 'ghost', 'demon', 'devil', 'angel', 'fairy', 'elf', 'dark elf',
+    'orc', 'goblin', 'harpy', 'lamia', 'mermaid', 'centaur', 'dragon', 'kitsune', 'nekomata', 'oni', 'yin yang',
+    'horror', 'fantasy', 'science fiction', 'retro', '1980s (style)', '1990s (style)', '2000s', 'anime', 'diorama',
+    'figure', 'figurine', 'statue', 'dakimakura', 'medium', 'raccoon girl', 'cow girl', 'cat girl', 'fox girl',
+    'wolf girl', 'dog girl', 'mouse girl', 'shark girl', 'goat girl', 'lion girl', 'horse girl', 'dragon girl',
+    'demon girl', 'slime', 'slime girl', 'ghost pose', 'zombie pose', 'warrior', 'priest', 'priestess', 'nun',
+    'monk', 'samurai', 'swordsman', 'soldier', 'commander', 'captain', 'teacher', 'sensei', 'student', 'nurse',
+    'maid', 'waitress', 'bartender', 'chef', 'detective', 'thief', 'assassin', 'wizard', 'sorcerer', 'archer',
+    'gunslinger', 'mechanic', 'pilot', 'idol', 'actress', 'model', 'dancer', 'singer', 'musician', 'painter',
+    'photographer', 'office lady', 'ol', 'housewife', 'bride', 'widow', 'queen', 'king', 'prince', 'elf',
+  ],
+
+  light: [
+    'light', 'lights', 'lighting', 'sidelighting', 'backlight', 'backlighting', 'rim light', 'sunlight',
+    'moonlight', 'starlight', 'neon', 'neon lights', 'city lights', 'glow', 'glowing', 'glowstick', 'shadow',
+    'shadows', 'reflection', 'reflections', 'lens flare', 'god rays', 'sunbeam', 'spotlight', 'darkness', 'dark',
+    'dim', 'bright', 'candlelight', 'firelight', 'colored light', 'dappled sunlight', 'light rays',
+    'light particles', 'afterglow', 'haze', 'fog', 'mist', 'foggy', 'overcast', 'twilight', 'aurora', 'sparkle',
+    'sparkles', 'particles', 'embers', 'glint', 'flash', 'strobe', 'caustics', 'refraction', 'diffraction spikes',
+    'laser', 'electricity', 'sparks', 'sunbeam', 'moonbeam', 'torchlight', 'lamp light', 'window light',
+  ],
+
+  hair: [
+    'hair', 'bangs', 'blunt bangs', 'braided bangs', 'hair between eyes', 'hair over one eye', 'hair over shoulder',
+    'hair up', 'hair down', 'ahoge', 'ponytail', 'twintails', 'twin tails', 'twin braids', 'twin drills', 'braid',
+    'braids', 'hime cut', 'sidelocks', 'hairband', 'hairclip', 'hair clip', 'hair clips', 'hair ornament',
+    'hair bow', 'hair bobbles', 'hair ribbon', 'hair flower', 'hairpods', 'hair intakes', 'drill hair', 'hair bun',
+    'single hair bun', 'bob cut', 'pixie cut', 'messy hair', 'wavy hair', 'curly hair', 'straight hair',
+    'short hair', 'long hair', 'very long hair', 'absurdly long hair', 'floating hair', 'gradient hair',
+    'multicolored hair', 'streaked hair', 'two-tone hair', 'colored inner hair', 'colored tips', 'split color hair',
+    'hair spread out', 'half updo', 'updo', 'afro', 'dreadlocks', 'cornrows', 'hair flaps', 'ringlets', 'curls',
+    'coif', 'topknot', 'bald', 'chestnut', 'hair censor', 'braided', 'unbraided', 'alternate hairstyle',
+    'official alternate hairstyle', 'two side up', 'one side up', 'twisted hair', 'hair pulled back',
+    'slicked hair', 'hair intakes', 'hair clips', 'hair clip', 'hair tie', 'hair scrunchie',
+  ],
+
+  eyes: [
+    'eyes', 'eye', 'pupils', 'pupil', 'eyelashes', 'eyelash', 'eyebrows', 'eyebrow', 'eyelid', 'eyelids',
+    'eyeshadow', 'eyeliner', 'eye color', 'heterochromia', 'slit pupils', 'heart shaped pupils',
+    'heart-shaped pupils', 'symbol shaped pupils', 'symbol-shaped pupils', 'star shaped pupils', 'ringed eyes',
+    'empty eyes', 'covered eyes', 'closed eye', 'one eye closed', 'half closed eyes', 'half-closed eyes',
+    'narrowed eyes', 'wide eyes', 'wide-eyed', 'rolling eyes', 'eyepatch', 'glasses', 'eyewear', 'sunglasses',
+    'monocle', 'goggles', 'blindfold', 'colored sclera', 'black sclera', 'red sclera', 'tsurime', 'tareme', 'jitome',
+    'sanpaku', 'eye focus', 'eye contact', 'eye reflection', 'no eyes', 'no pupils', 'dilated pupils',
+    'constricted pupils', 'one eye covered',
+  ],
+
+  expression: [
+    'tearing up', 'drunk', 'blunt ends', 'hot', 'shaded face',
+    'smile', 'smiling', 'grin', 'grinning', 'smirk', 'laugh', 'laughing', 'giggle', 'blush', 'blushing',
+    'nose blush', 'expression', 'expressionless', 'lips', 'teeth', 'clenched teeth', 'tongue', 'tongue out',
+    'drool', 'drooling', 'saliva', 'saliva trail', 'tears', 'teary', 'crying', 'sobbing', 'sad', 'happy', 'angry',
+    'anger vein', 'annoyed', 'surprised', 'shocked', 'scared', 'worried', 'nervous', 'embarrassed', 'shy', 'pout',
+    'pouting', 'frown', 'frowning', 'yawn', 'yawning', 'open mouth', 'closed mouth', 'parted lips', 'wink',
+    'winking', 'squinting', 'serious', 'smug', 'sleepy', 'tired', 'disgust', 'disgusted', 'seductive', 'horny',
+    'despair', 'determined', 'confused', 'thinking', 'kiss', 'licking', 'biting lip', 'biting', 'cheek bulge',
+    'sweatdrop', 'sweatdrops', 'sweat', 'sweating', 'heavy breathing', 'breath', 'heart', 'hearts', 'music note',
+    'musical note', 'emoticon', 'heart pupils', 'flustered', 'wince', 'grimace', 'scowl', 'glaring', 'staring',
+    'unhappy', 'excited', 'curious', 'crazy', 'naughty face', 'seductive', 'suggestive', 'torogao', 'gesugao',
+    'doyagao', 'mesugaki', 'tsundere', 'yandere', 'yandere trance',
+  ],
+
+  clothes: [
+    'halo', 'halos', 'side slit', 'lowleg', 'double bun', 'single side bun', 'pom pom', 'pom pom (clothes)', 'accessory', 'accessories', 'hair accessory', 'head accessory',
+    'highleg', 'zettai ryouiki', 'see-through', 'transparent', 'two-sided fabric', 'front-tie top', 'cross-laced top', 'square neckline', 'single pauldron', 'single epaulette', 'microdress', 'cutoffs', 'bun cover', 'o-ring', 'o-ring top', 'bangle', 'beads', 'drawstring', 'buckle', 'buckles', 'tassel', 'tabi', 'randoseru', 'earmuffs', 'headpiece', 'tachi-e', 'headwear', 'beanie', 'haori', 'tailcoat', 'camouflage', 'bodycon', 'habit', 'hanbok', 'kanzashi', 'egasumi', 'shouji', 'yaoya',
+    'clothes', 'clothing', 'outfit', 'costume', 'uniform', 'school uniform', 'gym uniform', 'shirt', 't shirt',
+    't-shirt', 'blouse', 'sweater', 'cardigan', 'hoodie', 'jacket', 'coat', 'trench coat', 'blazer', 'vest',
+    'waistcoat', 'suit', 'tuxedo', 'dress', 'gown', 'wedding dress', 'sundress', 'nightgown', 'nightdress', 'skirt',
+    'miniskirt', 'microskirt', 'pleated skirt', 'pants', 'trousers', 'shorts', 'jeans', 'overalls', 'romper',
+    'jumpsuit', 'bikini', 'swimsuit', 'one piece swimsuit', 'competition swimsuit', 'school swimsuit', 'leotard',
+    'bodysuit', 'bodystocking', 'wetsuit', 'bra', 'sports bra', 'bandeau', 'panties', 'underwear', 'lingerie',
+    'boxers', 'briefs', 'thong', 'g string', 'g-string', 'garter', 'garter belt', 'garter straps', 'stockings',
+    'pantyhose', 'tights', 'thighhighs', 'hiphighs', 'socks', 'kneehighs', 'legwear', 'footwear', 'shoes', 'boots',
+    'heels', 'high heels', 'pumps', 'sandals', 'sneakers', 'loafers', 'mary janes', 'slippers', 'geta', 'zouri',
+    'okobo', 'gloves', 'mittens', 'arm guards', 'sleeves', 'long sleeves', 'short sleeves', 'sleeveless',
+    'puffy sleeves', 'detached sleeves', 'single detached sleeve', 'frills', 'frilled', 'lace', 'ruffles', 'ribbon',
+    'ribbons', 'bow', 'bowtie', 'necktie', 'tie', 'ascot', 'neckerchief', 'scarf', 'muffler', 'shawl', 'stole',
+    'cape', 'capelet', 'cloak', 'veil', 'apron', 'maid outfit', 'nurse uniform', 'sailor collar', 'serafuku',
+    'track suit', 'jersey', 'sportswear', 'kimono', 'yukata', 'hanfu', 'qipao', 'cheongsam', 'hanbok', 'sarong',
+    'harem pants', 'hakama', 'armor', 'breastplate', 'helmet', 'hat', 'cap', 'baseball cap', 'beret', 'bonnet',
+    'headband', 'headwear', 'headgear', 'headdress', 'maid headdress', 'visor', 'crown', 'tiara', 'circlet',
+    'horns', 'antlers', 'animal ear', 'animal ears', 'cat ears', 'fox ears', 'rabbit ears', 'dog ears', 'earrings',
+    'earring', 'earclip', 'necklace', 'choker', 'pendant', 'brooch', 'bracelet', 'bangles', 'anklet', 'ring',
+    'rings', 'jewelry', 'watch', 'wristwatch', 'belt', 'belts', 'sash', 'obi', 'obijime', 'suspenders', 'zipper',
+    'zippers', 'buttons', 'pocket', 'pockets', 'hood', 'hooded', 'mask', 'surgical mask', 'eyemask', 'blindfold',
+    'leash', 'wings', 'tail', 'tails', 'tattoo', 'body writing', 'bodypaint', 'piercing', 'navel piercing',
+    'ear piercing', 'nail polish', 'nails', 'fingernails', 'toenails', 'makeup', 'lipstick', 'mascara', 'cosmetics',
+    'eyeliner', 'fishnet', 'fishnets', 'net', 'latex', 'corset', 'bustier', 'camisole', 'slip', 'petticoat', 'robe',
+    'bathrobe', 'poncho', 'duffel coat', 'leg warmers', 'arm warmers', 'wristband', 'headphones', 'scrunchy',
+    'scrunchies', 'hair tie', 'hairpin', 'harness', 'holster', 'gauntlets', 'bridal gauntlets', 'vambraces',
+    'pauldrons', 'greaves', 'faulds', 'epaulettes', 'aiguillette', 'cuffs', 'armlet', 'armband', 'bandana',
+    'hachimaki', 'turban', 'hijab', 'dudou', 'bloomers', 'buruma', 'fundoshi', 'loincloth', 'sarashi', 'muneate',
+    'tabard', 'tunic', 'toga', 'fur trim', 'fur-trimmed', 'trim', 'trimmed', 'print', 'patterned', 'polka dot',
+    'plaid', 'striped', 'checkered', 'pinstripe', 'leopard print', 'tiger print', 'cow print', 'floral print',
+    'rose print', 'star print', 'fish print', 'snowflake print', 'dragon print', 'cat cutout', 'cutout',
+    'side cutout', 'diamond cutout', 'button gap', 'crop top', 'tube top', 'tank top', 'halterneck', 'halter',
+    'off shoulder', 'off-shoulder', 'strapless', 'backless', 'plunging neckline', 'low neckline', 'open fly',
+    'unzipped', 'unbuttoned', 'partially unbuttoned', 'panty straps', 'strap', 'straps', 'single strap',
+    'wrist cuffs', 'ankle cuffs', 'sleeve cuffs', 'detached collar', 'collar', 'turtleneck', 'lapels',
+    'notched lapels', 'double-breasted', 'double breasted', 'bodice', 'stilettos', 'platform shoes', 'knee boots',
+    'thigh boots', 'uwabaki', 'skates', 'roller skates', 'ice skates', 'inline skates', 'flip flops', 'flip-flops',
+    'swim trunks', 'rash guard', 'sports bra', 'pajamas', 'pink pajamas', 'white pajamas', 'sleepwear',
+    'negligee', 'babydoll', 'garter belt', 'pantyhose', 'white pantyhose', 'leggings', 'white leggings',
+    'tank top', 'white tank top', 'grey tank top', 'shrug', 'red shrug', 'black shrug', 'white shrug',
+    'raincoat', 'cardigan', 'cable knit', 'knit', 'denim', 'leather', 'satin', 'silk', 'fur', 'feather boa',
+    'wrist scrunchie', 'black scrunchie', 'pink scrunchie', 'red scrunchie', 'yellow scrunchie', 'blue scrunchie',
+    'purple scrunchie', 'white scrunchie', 'single glove', 'single sock', 'single boot', 'single shoe',
+    'single thighhigh', 'single kneehigh', 'asymmetrical handwear', 'asymmetrical armwear', 'asymmetrical docking',
+    'clothes lift', 'clothing lift', 'shirt lift', 'skirt lift', 'clothes cutout', 'clothing cutout',
+    'clothes off', 'partially undressed', 'partially unbuttoned', 'open clothes', 'undressing', 'dressing',
+    'topless', 'bottomless', 'nude', 'naked', 'completely nude', 'nude cover', 'topless female', 'naked apron',
+    'naked bandage', 'naked sheet', 'naked ribbon', 'nude', 'maebari',
+  ],
+
+  body: [
+    'barefoot', 'skindentation', 'skin indentation', 'bulge', 'underbutt', 'no mouth', 'shaded face', 'facial', 'dot nose', 'nose', 'wavy mouth', 'triangle mouth', 'rectangular mouth', 'middle finger', 'fingers', 'median furrow', 'furrowed brow', 'anti-eyebrow', 'uvula', 'joints', 'disembodied limb', 'headless', 'faceless', 'trembling', 'twitching', 'dripping', 'puff of air', 'air bubble', 'bubble', 'bulge', 'plantar flexion', 'dorsiflexion',
+    'body', 'breasts', 'breast', 'cleavage', 'collarbone', 'shoulders', 'shoulder', 'armpits', 'armpit', 'skin',
+    'bare skin', 'muscle', 'muscular', 'abs', 'stomach', 'belly', 'navel', 'waist', 'hips', 'hip', 'thighs',
+    'thigh', 'thigh gap', 'thighlet', 'legs', 'leg', 'feet', 'foot', 'soles', 'toes', 'toe', 'hands', 'hand',
+    'fingers', 'fingernails', 'arms', 'arm', 'elbows', 'elbow', 'knees', 'knee', 'kneepits', 'calf', 'calves',
+    'neck', 'nape', 'ears', 'ear', 'tail', 'wings', 'freckles', 'moles', 'mole', 'birthmark', 'scar', 'scars',
+    'veins', 'sweat', 'wet', 'damp', 'ass', 'butt', 'buttocks', 'butt crack', 'gluteal fold', 'groin', 'crotch',
+    'jaw', 'chin', 'cheek', 'cheeks', 'forehead', 'spine', 'back', 'chest', 'pectorals', 'ribs', 'torso', 'limbs',
+    'wrist', 'wrists', 'ankles', 'heel', 'heels', 'palm', 'palms', 'knuckles', 'throat', 'midriff', 'underbust',
+    'midriff peek', 'tan', 'tanlines', 'one-piece tan', 'sunburn', 'bruise', 'bruises', 'injury', 'bandage',
+    'bandaid', 'bandages', 'stitches', 'blood', 'blood on face', 'blood from mouth', 'bleeding', 'nosebleed',
+    'snot', 'dimples', 'dimples of venus', 'linea alba', 'thick thighs', 'wide hips', 'narrow waist', 'petite',
+    'tall', 'short stature', 'flat chest', 'small breasts', 'medium breasts', 'large breasts', 'huge breasts',
+    'gigantic breasts', 'plump', 'slender', 'skinny', 'toned', 'curvy', 'fat', 'hairy', 'whisker markings',
+    'facial mark', 'star facial mark', 'facepaint', 'hickey', 'slap mark', 'bite mark', 'handprint', 'scales',
+    'feathers', 'fur', 'two-tone fur', 'head fins', 'antennae', 'fangs', 'fang', 'single horn', 'tusks', 'snout',
+    'claws', 'paws', 'paw print', 'hooves', 'beard', 'mustache', 'stubble', 'eyebrows', 'mole under eye',
+    'beauty mark', 'dark nipples', 'hard nipples', 'veiny breasts', 'breast focus', 'cleavage cutout', 'waist',
+    'thigh strap', 'leg ring', 'ankle strap',
+  ],
+
+  pose: [
+    'finger to mouth', 'finger to lips', 'shushing', 'hands on own chest',
+    'the pose', 'dynamic pose', 'claw pose', 'rabbit pose', 'reverse bunnysuit', 'back-to-back', 'on head', 'planted', 'folded', 'flexible', 'midair', 'upside-down', 'straight-on', 'sideways', 'across',
+    'standing', 'stands', 'sitting', 'seated', 'kneeling', 'kneel', 'lying', 'lying down', 'on stomach', 'on back',
+    'on side', 'on bed', 'on ground', 'on bench', 'on stool', 'on lap', 'on rock', 'on roof', 'on railing',
+    'on swing', 'on vehicle', 'on motorcycle', 'on chair', 'on couch', 'on floor', 'all fours', 'seiza', 'wariza',
+    'yokozuwari', 'indian style', 'crossed legs', 'cross-legged', 'crossed ankles', 'squatting', 'squating',
+    'crouching', 'bent over', 'leaning', 'leaning forward', 'leaning back', 'arched back', 'straddling', 'riding',
+    'm legs', 'legs up', 'spread legs', 'knees up', 'legs together', 'legs crossed', 'arms up', 'arm up',
+    'arms behind', 'arms behind back', 'hands on hips', 'hands on knees', 'hand on own chest', 'hand up',
+    'hands up', 'hands in pockets', 'hand in pocket', 'hand on hip', 'head tilt', 'tilted head', 'looking back',
+    'looking over shoulder', 'bow', 'bowing', 'prostrate', 'presenting', 'top-down bottom-up', 'sitting on lap',
+    'kneeling on', 'standing on one leg', 'on one knee', 'one knee', 'raised arm', 'raised arms', 'reaching up',
+    'lifted', 'suspended', 'carried', 'piggyback', 'princess carry', 'hugging own legs', 'fetal position',
+    'reclining', 'facing viewer', 'facing away', 'facing to the side', 'facing up', 'facing down', 'twisted torso',
+    'contrapposto', 'pigeon-toed', 'tip toes', 'tiptoes', 'heel pop', 'head rest', 'head down', 'head grab',
+    'head pat', 'headpat', 'leaning on', 'palms together', 'kneeling down', 'getting up', 'lying down',
+    'sitting down', 'standing up', 'handstand', 'split', 'frontbend', 'dogeza', 'curtsey', 'salute', 'kabedon',
+    'yoga', 'stretching', 'ballet', 'bowlegged pose', 'jojo pose', 'paw pose', 'otsu pose', 'ojou-sama pose',
+    'knees up', 'legs apart', 'legs crossed', 'head between legs', 'bent knees', 'straight legs',
+  ],
+
+  action: [
+    'trigger discipline', 'reverse grip', 'pulled by self', 'pulled by another',
+    'holding', 'holds', 'hugging', 'embracing', 'kissing', 'kiss', 'eating', 'drinking', 'reading', 'writing',
+    'playing', 'walking', 'running', 'dancing', 'singing', 'sleeping', 'waving', 'wave', 'pointing', 'reaching',
+    'grabbing', 'touching', 'carrying', 'wiping', 'opening', 'closing', 'pulling', 'pushing', 'taking off',
+    'putting on', 'undressing', 'dressing', 'lifting', 'adjusting', 'posing', 'fighting', 'swimming', 'flying',
+    'jumping', 'climbing', 'running away', 'hiding', 'peeking', 'watching', 'cooking', 'cleaning', 'washing',
+    'bathing', 'brushing', 'combing', 'tying', 'cutting', 'stabbing', 'shooting', 'throwing', 'catching',
+    'punching', 'kicking', 'falling', 'tripping', 'floating', 'levitating', 'spinning', 'bowing', 'praying',
+    'crawling', 'rolling', 'stretching', 'yawning', 'smoking', 'pouring', 'feeding', 'spilling', 'spill',
+    'shopping', 'driving', 'riding', 'sailing', 'fishing', 'wading', 'freediving', 'diving', 'swinging',
+    'hanging', 'melting', 'broken', 'stuck', 'caught', 'walking away', 'turning head', 'turning around',
+    'hand grab', 'torso grab', 'strap pull', 'strap lift', 'panty pull', 'clothes lift', 'clothing lift',
+    'shirt lift', 'skirt lift', 'covering', 'covering mouth', 'covering own mouth', 'covering face',
+    'covering privates', 'covered mouth', 'covered face', 'facepalm', 'shushing', 'silencing', 'pinching',
+    'poking', 'petting', 'spanked', 'stepped on', 'holding cup', 'holding sword', 'holding weapon',
+    'holding phone', 'holding book', 'holding food', 'holding flower', 'holding umbrella', 'holding bag',
+    'dual wielding', 'aiming', 'firing', 'aiming at viewer', 'unsheathing', 'sheathed', 'holstered', 'waking up',
+    'shouting', 'screaming', 'moaning', 'talk', 'talking', 'whispering', 'smelling', 'drying', 'exercising',
+    'weightlifting', 'training', 'battle', 'incoming attack', 'incoming hug', 'kuji-in', 'sign language',
+    'thumbs up', 'pinky out', 'reaching out', 'arms behind back', 'hands behind back', 'hands behind head',
+    'hands on own face', 'hand on own cheek', 'hand on own hip', 'hands on own hips', 'hand on own thigh',
+    'grabbing another', 'head out of frame', 'leg out of frame', 'arm out of frame', 'foot out of frame',
+    'spread', 'lifting own clothes', 'pulling own clothes', 'removing clothes', 'dressing up', 'posing for',
+    'taking picture', 'selfie', 'photo', 'recording', 'livestream', 'playing game', 'gaming', 'texting',
+    'phone call', 'on phone', 'reading book', 'reading letter', 'writing letter', 'drawing', 'painting',
+  ],
+
+  scene: [
+    'shower', 'showering', 'waterfall', 'ripples', 'waves', 'splashing', 'partially submerged', 'underwater', 'skyscraper', 'house', 'walk-in', 'walk-in closet', 'swing', 'racetrack', 'casino', 'stove', 'counter', 'transformation',
+    'indoors', 'outdoors', 'indoor', 'outdoor', 'room', 'bedroom', 'living room', 'dining room', 'bathroom',
+    'restroom', 'toilet', 'kitchen', 'classroom', 'school', 'schoolyard', 'hallway', 'corridor', 'library',
+    'office', 'studio', 'stage', 'backstage', 'rooftop', 'balcony', 'veranda', 'porch', 'garden', 'park', 'street',
+    'road', 'alley', 'city', 'town', 'village', 'countryside', 'field', 'meadow', 'forest', 'woods', 'jungle',
+    'mountain', 'hill', 'cliff', 'lake', 'river', 'pond', 'sea', 'ocean', 'beach', 'shore', 'seaside', 'pool',
+    'onsen', 'bath', 'hot spring', 'shrine', 'temple', 'church', 'castle', 'ruins', 'dungeon', 'tower', 'cave',
+    'desert', 'snow', 'camp', 'tent', 'car', 'train', 'bus', 'plane', 'ship', 'boat', 'motorcycle', 'station',
+    'platform', 'market', 'shop', 'store', 'convenience store', 'cafe', 'restaurant', 'bar', 'hotel', 'inn',
+    'hospital', 'infirmary', 'prison', 'arena', 'stadium', 'gym', 'poolside', 'window', 'windowsill', 'curtain',
+    'curtains', 'door', 'doorway', 'wall', 'floor', 'ceiling', 'stairs', 'staircase', 'stairwell', 'furniture',
+    'bed', 'chair', 'table', 'desk', 'sofa', 'couch', 'bookshelf', 'shelf', 'carpet', 'rug', 'mirror', 'sky',
+    'cloud', 'clouds', 'sun', 'moon', 'stars', 'starry sky', 'night', 'day', 'daytime', 'evening', 'morning',
+    'sunset', 'sunrise', 'dusk', 'dawn', 'rain', 'raining', 'snowing', 'fog', 'wind', 'water', 'underwater',
+    'flower', 'flowers', 'tree', 'trees', 'grass', 'leaves', 'petals', 'fire', 'fireworks', 'lantern', 'lanterns',
+    'city lights', 'neon signs', 'sign', 'signage', 'building', 'buildings', 'bridge', 'fence', 'railing', 'gate',
+    'elevator', 'escalator', 'crosswalk', 'sidewalk', 'pavement', 'cobblestone', 'stone path', 'path', 'highway',
+    'tunnel', 'subway', 'bus stop', 'bench', 'park bench', 'wooden bench', 'cushion', 'futon', 'tatami', 'shouji',
+    'sliding doors', 'wardrobe', 'locker', 'vending machine', 'refrigerator', 'tv', 'television', 'computer',
+    'monitor', 'laptop', 'tablet pc', 'game console', 'console', 'controller', 'phone', 'smartphone', 'cellphone',
+    'camera', 'camcorder', 'microphone', 'headset', 'speaker', 'clock', 'fireplace', 'aquarium', 'greenhouse',
+    'zoo', 'amusement park', 'ferris wheel', 'carousel', 'bathhouse', 'sauna', 'shower', 'bathtub', 'sink',
+    'faucet', 'lighthouse', 'pier', 'dock', 'harbor', 'airplane', 'aircraft', 'helicopter', 'warship', 'tank',
+    'military vehicle', 'motor vehicle', 'truck', 'bicycle', 'skateboard', 'surfboard', 'steam', 'smoke',
+    'traffic', 'across the street', 'night street', 'cityscape', 'skyline', 'horizon', 'mountainous horizon',
+    'nature', 'spring', 'summer', 'autumn', 'winter', 'christmas', 'halloween', 'new year', 'valentine',
+    'festival', 'concert', 'theater', 'movie theater', 'casino', 'karaoke', 'dojo', 'laboratory', 'spaceship',
+    'space', 'planet', 'galaxy', 'milky way', 'nebula', 'earth', 'restroom stall', 'toilet stall', 'bathroom stall',
+    'shower (place)', 'public bath', 'roof', 'train station', 'bus interior', 'car interior', 'cockpit',
+    'library (place)', 'school building', 'school rooftop', 'gymnasium', 'pool (place)', 'beach chair',
+    'in container', 'on beach', 'in bed', 'under covers', 'on couch', 'at table', 'in classroom', 'in office',
+  ],
+
+  props: [
+    'star (symbol)', 'star \\(symbol\\)', 'eighth note', 'tally', 'tally mark', 'symbol',
+    'polearm', 'kunai', 'anchor', 'steering wheel', 'viewfinder', 'scope', 'poker chip', 'confetti', 'candlestand', 'chewing gum', 'scepter', 'graffiti', 'machinery', 'mechanical parts', 'tool', 'vacuum cleaner', 'stethoscope', 'toothbrush', 'remote control', 'sparkler', 'user interface', 'heads-up display', 'gameplay mechanics', 'content rating', 'product placement', 'sound effects', 'trophy', 'emblem', 'badge', 'banner', 'flag', 'fountain', 'helmet', 'propeller', 'propeller fighter', 'watercraft', 'ground vehicle', 'motor vehicle', 'vehicle', 'rigging', 'stripper pole', 'pole', 'column', 'pillar', 'throne', 'house', 'skyscraper', 'architecture', 'east asian architecture', 'tiles', 'bamboo', 'branch', 'leaf', 'vine', 'vines', 'foliage', 'mushroom', 'lily pad', 'hibiscus', 'hydrangea', 'spider lily', 'flower', 'rose', 'snowflakes', 'rainbow', 'constellation', 'lightning', 'explosion', 'fire', 'smoke', 'dust', 'magic', 'magic circle', 'aura', 'spikes', 'chain', 'chained', 'iron cross', 'cross', 'crescent', 'gold', 'silver', 'bubble',
+    'weapon', 'weapons', 'sword', 'swords', 'katana', 'knife', 'knives', 'dagger', 'gun', 'guns', 'rifle',
+    'pistol', 'handgun', 'revolver', 'shotgun', 'spear', 'axe', 'bow', 'arrow', 'arrows', 'shield', 'staff',
+    'wand', 'scythe', 'halberd', 'lance', 'whip', 'chain', 'chains', 'rope', 'book', 'books', 'paper', 'papers',
+    'letter', 'map', 'phone', 'smartphone', 'cellphone', 'camera', 'headphones', 'earphones', 'earbuds',
+    'microphone', 'umbrella', 'parasol', 'bag', 'backpack', 'handbag', 'purse', 'suitcase', 'luggage',
+    'briefcase', 'bottle', 'cup', 'glass', 'mug', 'teapot', 'teacup', 'plate', 'bowl', 'spoon', 'fork',
+    'chopsticks', 'food', 'fruit', 'apple', 'cake', 'bread', 'candy', 'lollipop', 'ice cream', 'drink', 'tea',
+    'coffee', 'wine', 'beer', 'sake', 'whiskey', 'champagne', 'cigarette', 'smoke', 'pipe', 'doll', 'plush',
+    'plushie', 'teddy bear', 'toy', 'ball', 'balloon', 'kite', 'fan', 'folding fan', 'basket', 'box', 'gift',
+    'present', 'vase', 'flower pot', 'candle', 'lantern', 'torch', 'flashlight', 'mirror', 'clock', 'watch',
+    'key', 'keys', 'jewel', 'gem', 'gemstone', 'coin', 'coins', 'money', 'banknote', 'card', 'cards', 'dice',
+    'board', 'chess', 'chessboard', 'instrument', 'guitar', 'piano', 'violin', 'drum', 'flute', 'trumpet',
+    'harp', 'lyre', 'paintbrush', 'brush', 'pen', 'pencil', 'notebook', 'notepad', 'pillow', 'blanket', 'towel',
+    'soap', 'bed sheet', 'sheets', 'stained sheets', 'lamp', 'chandelier', 'plant', 'potted plant', 'wreath',
+    'bouquet', 'rose', 'tulip', 'sunflower', 'lotus', 'wisteria', 'cherry blossoms', 'maple leaf', 'ginkgo leaf',
+    'clover', 'four leaf clover', 'starfish', 'shell', 'seashell', 'crystal', 'orb', 'skull', 'bone', 'skeleton',
+    'syringe', 'pill', 'drugs', 'test tube', 'flask', 'vial', 'potion', 'tape', 'string', 'thread', 'stone',
+    'rock', 'rubble', 'debris', 'brick', 'dust', 'sand', 'snowball', 'ice', 'ice cube', 'sponge', 'bucket',
+    'mop', 'broom', 'hammer', 'wrench', 'screwdriver', 'scissors', 'needle', 'pin', 'safety pin', 'padlock',
+    'lock', 'cage', 'birdcage', 'ladder', 'stool', 'armchair', 'hammock', 'wheelchair', 'cane', 'crutch',
+    'skates', 'racket', 'tennis racket', 'baseball bat', 'baseball mitt', 'basketball', 'dumbbell',
+    'boxing gloves', 'helmet', 'trophy', 'medal', 'badge', 'flag', 'banner', 'sign', 'signboard', 'poster',
+    'picture frame', 'frame', 'painting', 'scroll', 'hanging scroll', 'ofuda', 'talisman', 'magatama',
+    'shimenawa', 'torii', 'ema', 'omikuji', 'kuji', 'gaming', 'controller', 'keyboard', 'computer keyboard',
+    'mouse', 'mousepad', 'joystick', 'd pad', 'headset', 'monitor', 'screen', 'speaker', 'radio', 'boombox',
+    'record', 'phonograph', 'cassette', 'cable', 'charger', 'battery', 'light bulb', 'street light', 'lamppost',
+    'traffic light', 'power lines', 'utility pole', 'antenna', 'satellite', 'drone', 'airplane', 'car', 'truck',
+    'motorcycle', 'bicycle', 'skateboard', 'surfboard', 'boat', 'ship', 'train', 'bus', 'tram', 'cart',
+    'wheelbarrow', 'cannon', 'turret', 'grenade', 'bomb', 'missile', 'rocket launcher', 'torpedo',
+    'torpedo tubes', 'torpedo launcher', 'sig sauer', 'glock', 'h&k hk416', 'ar-15', 'bullet', 'shell casing',
+    'ammunition', 'quiver', 'scabbard', 'sheath', 'holster', 'rifle case', 'binoculars', 'telescope',
+    'magnifying glass', 'candelabra', 'candlestick', 'pumpkin', 'watermelon', 'lemon', 'orange', 'strawberry',
+    'grapes', 'peach', 'cherry', 'banana', 'carrot', 'tomato', 'meat', 'steak', 'sushi', 'onigiri', 'dango',
+    'sanshoku dango', 'ramen', 'noodles', 'curry', 'curry rice', 'omelet', 'omurice', 'pancake', 'pancake stack',
+    'sandwich', 'burger', 'french fries', 'pizza', 'pizza slice', 'cookie', 'chocolate', 'macaron', 'parfait',
+    'sundae', 'pudding', 'birthday cake', 'strawberry shortcake', 'toast', 'toast in mouth', 'pocky',
+    'pocky in mouth', 'bento', 'baozi', 'egg', 'rice', 'soup', 'salad', 'milk', 'milk carton', 'soda can', 'can',
+    'cola', 'juice', 'water bottle', 'coconut', 'popsicle', 'popsicle in mouth', 'whipped cream', 'cream', 'honey',
+    'jam', 'sugar', 'salt', 'spice', 'pan', 'frying pan', 'pot', 'kettle', 'ladle', 'spatula', 'tray',
+    'tiered tray', 'saucer', 'goblet', 'chalice', 'wine glass', 'barrel', 'sack', 'crate', 'carton', 'envelope',
+    'stamp', 'quill', 'inkwell', 'chalk', 'chalkboard', 'whiteboard', 'marker', 'crayon', 'stylus', 'tablet',
+    'clipboard', 'document', 'newspaper', 'magazine', 'calendar', 'bookmark', 'dictionary', 'encyclopedia',
+    'poster (object)', 'screenshot', 'phone case', 'keychain', 'charm', 'charm (object)', 'character charm',
+    'sticker', 'sticker on face', 'nametag', 'name tag', 'lanyard', 'whistle', 'bell', 'jingle bell', 'cowbell',
+    'horn', 'megaphone', 'walkie talkie', 'walkie-talkie', 'earpiece', 'head-mounted display', 'hologram',
+    'vr headset', 'handheld game console', 'nintendo switch', 'playstation controller', 'computer mouse',
+    'laptop', 'tablet pc', 'iphone', 'tissue', 'used tissue', 'blanket', 'pillow', 'bedsheet', 'sheet grab',
+    'umbrella', 'parasol', 'fan', 'folding fan', 'uchikwa', 'uchiwa', 'balloon', 'ball', 'beachball',
+    'watermelon slice', 'lemon slice', 'orange slice', 'cake slice', 'cupcake', 'doughnut', 'crepe', 'hot dog',
+    'chips', 'potato chips', 'popcorn', 'cereal', 'noodles', 'sake set', 'tokkuri', 'sakazuki', 'tanzaku',
+    'hagoita', 'kendama', 'rubik', 'puzzle', 'rubber duck', 'inflatable raft', 'inner tube', 'innertube',
+    'lifebuoy', 'surfboard', 'swim ring', 'beach towel', 'sun umbrella', 'beach parasol',
+  ],
+};
+
+const RES = Object.entries(LISTS)
+  .filter(([, words]) => words.length)
+  .map(([cat, words]) => [cat, toRe(words)]);
+
+/* lora.db 的 tag.kind 是大类兜底：关键词判不出来时才用它 */
+const KIND_MAP = {
+  '服装': 'clothes',
+  '动作': 'action',
+  '场景': 'scene',
+  '身体': 'body',
+  '画风质量': 'quality',
+};
+
+export function catOf(raw, kind) {
+  const name = clean(raw);
+  /* 明确的成人向词根：命中就直接归 adult，先于其它规则 */
+  if (/(cumshot|cumdrip|cum on|creampie|paizuri|fellatio|irrumatio|penis|phallus|pussy|vagina|vulva|areola|nipples?|anus|squirting|orgasm|ejaculat|impregnat|fertiliz|doggystyle|missionary|cowgirl position|deepthroat|anilingus|futanari|tentacle)/.test(name)) return 'adult';
+  for (const [cat, re] of RES) if (re.test(name)) return cat;
+  const hit = KIND_MAP[String(kind || '').trim()];
+  if (hit) return hit;
+  /* 颜文字 / 单字母表情：:d、w、v、^ ^ 之类 */
+  if ((/[^a-z]/.test(name) || name.length <= 2) && name.length <= 4 && !/\s{2,}/.test(name)) return 'expression';
+  /* 角色 / 作品名：名字末尾带括号的，基本是「名字 (作品)」 */
+  if (/^@/.test(name) || /\([^)]*\)\s*$/.test(name) || /\b(series|character)\b/.test(name)) return 'character';
+  return 'other';
+}
+
+/* 触发词里可能混着整段 prompt，这些是通用词，不当角色名 */
+const GENERIC = new Set(['1girl','1boy','2girls','2boys','solo','smile','standing','sitting','looking at viewer','open mouth','closed mouth','upper body','full body','blush','indoors','outdoors','long hair','short hair','from behind','from side','bare shoulders','long sleeves','short sleeves','breasts','best quality','masterpiece','highres']);
+
+export function isGenericWord(w) {
+  return GENERIC.has(String(w).toLowerCase().trim());
+}
+
+export function categories() {
+  return Object.keys(LISTS);
+}
