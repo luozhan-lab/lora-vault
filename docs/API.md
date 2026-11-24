@@ -1,4 +1,4 @@
-# 开放接口
+﻿# 开放接口
 
 服务地址：`http://127.0.0.1:8787`
 写操作需要 token：请求头 `X-API-Token: <token>`，或查询参数 `?token=<token>`。
@@ -42,7 +42,7 @@ token 在界面上「接口」按钮里，也在 `data/config.json` 的 `token` 
 `path` 三种写法都收：
 
 - 相对路径 `角色\原神\xxx.safetensors`
-- 绝对路径 `D:\AI资产库\loras\角色\原神\xxx.safetensors`
+- 绝对路径 `D:\Loras\loras\角色\原神\xxx.safetensors`
 - 只给文件名 `xxx.safetensors`（服务器自己去磁盘索引里找）
 
 返回：

@@ -1,4 +1,4 @@
-﻿# 依赖
+# 依赖
 node_modules/
 desktop/node_modules/
 
@@ -21,11 +21,13 @@ backup/
 *.log
 npm-debug.log*
 *.tmp
+tmp/
+tmp-*
 
 # 编辑器
 .vscode/
 .idea/
 
-# 临时测试目录
-tmp/
-tmp-*
+# 内部文档：给本机工作用，不对外
+HANDOFF.md
+DEVLOG.md

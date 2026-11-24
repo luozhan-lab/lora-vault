@@ -1,4 +1,4 @@
-# 开放接口 · 第二批
+﻿# 开放接口 · 第二批
 
 新增的三块：Civitai 补全、体检 / 查重、出图回写。
 
@@ -107,7 +107,7 @@ GET /api/health-report
 
 ## 二、出图回写
 
-服务启动后会盯着 `D:\Comfy-Desktop\studio\docs\gen-log.jsonl`，每 10 秒看一次文件有没有变，变了就把新行拆成样张。
+服务启动后会盯着 `<ComfyUI 安装目录>\studio\docs\gen-log.jsonl`，每 10 秒看一次文件有没有变，变了就把新行拆成样张。
 
 - 每行台账 → 每个挂载的 LoRA 一条 `sample`
 - 去重靠 `uid = 时间 + 出图路径`，同一行读一百遍也只入一次

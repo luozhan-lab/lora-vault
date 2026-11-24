@@ -1,4 +1,4 @@
-# LoRA 库
+﻿# LoRA 库
 
 本地 LoRA 管理软件：把磁盘上所有 `.safetensors` 扫进来，按作品/分类/标签整理，每支带触发词、特征词、服装词、下载地址、预览图，并留一套 HTTP 接口给桌面端 AI 自动录入。
 
@@ -9,7 +9,7 @@
 **桌面版（就用这个）**：双击桌面上的「LoRA 库」，或者
 
 ```
-C:\Users\16500\AppData\Local\Programs\LoraLibrary\LoraLibrary.exe
+%LOCALAPPDATA%\Programs\LoraLibrary\LoraLibrary.exe
 ```
 
 打开是一个自己的窗口，不是浏览器。它会自己把后端（Node 服务）拉起来，关窗口就把后端一起关掉。
@@ -17,7 +17,7 @@ C:\Users\16500\AppData\Local\Programs\LoraLibrary\LoraLibrary.exe
 **命令行启动（调试用）**：
 
 ```powershell
-cd C:\Users\16500\Documents\deepseek-harness\default-workspace\lora-library
+cd lora-library
 node server.mjs
 ```
 
@@ -81,16 +81,16 @@ node server.mjs
 
 接口说明见 [docs/API.md](docs/API.md)、[API-2](docs/API-2.md)、[API-3](docs/API-3.md)、[API-4](docs/API-4.md)、[API-5](docs/API-5.md)。
 
-第一次启动会自动扫描 `D:\AI资产库\loras`，把没入库的补进来（不读元数据，很快）。
+第一次启动会自动扫描 `D:\Loras`，把没入库的补进来（不读元数据，很快）。
 需要把训练标签、底模一起补上的，点界面上的「扫描磁盘」（会读 safetensors 头部，1111 支大概一两分钟）。
 
 ## 数据从哪来
 
 | 来源 | 用途 |
 |---|---|
-| `D:\AI资产库\loras\**\*.safetensors` | 文件本身；头部 `__metadata__` 里的 `ss_tag_frequency` / `ss_base_model_version` 直接读成训练标签和底模 |
-| `D:\AI资产库\samples\**\*.png` | 预览图（739 支有） |
-| `D:\Comfy-Desktop\studio\data\library.db` | 老库：中文名、分类、触发词、来源 id、逐支标签 |
+| `D:\Loras\**\*.safetensors` | 文件本身；头部 `__metadata__` 里的 `ss_tag_frequency` / `ss_base_model_version` 直接读成训练标签和底模 |
+| `D:\Loras-samples\**\*.png` | 预览图（739 支有） |
+| `<ComfyUI 目录>\studio\data\library.db` | 老库：中文名、分类、触发词、来源 id、逐支标签 |
 | `tools\data\characters.json` | 481 条角色：触发词 / 特征词 / 服装词 / 权重 |
 | `tools\data\aux-loras.json` | 214 条辅助：用途、触发词、Civitai 链接 |
 | `docs\gen-log.jsonl` | 4158 条出图台账 → 每支被用过几次、最后一张图 |
@@ -136,7 +136,7 @@ curl -X POST http://127.0.0.1:8787/api/loras `
   -d '{"filename":"新下的.safetensors","name":"角色名","source_url":"https://civitai.com/models/xxx"}'
 ```
 
-文件已经在 `D:\AI资产库\loras` 下的话，触发词、特征词、服装词、训练标签会自动从文件头读出来，不用手填。
+文件已经在 `D:\Loras` 下的话，触发词、特征词、服装词、训练标签会自动从文件头读出来，不用手填。
 
 ## 改路径 / 端口
 
@@ -155,7 +155,7 @@ curl -X POST http://127.0.0.1:8787/api/loras `
 
 ## 给别人用
 
-这套默认是按「D:\AI资产库 + ComfyUI Desktop」配的。换台机器，**第一次打开会提示还没配好**，点「设置」→「自动检测」：
+这套默认是按「D:\Loras + ComfyUI Desktop」配的。换台机器，**第一次打开会提示还没配好**，点「设置」→「自动检测」：
 
 1. 自动检测会读 **Comfy Desktop** 的 `settings.json` / `instance-model-paths\*.yaml`，找出：
    LoRA 目录、图库目录、四类模型目录（底模 / 文本编码器 / VAE / checkpoint）

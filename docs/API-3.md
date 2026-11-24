@@ -1,4 +1,4 @@
-# 开放接口 · 第三批
+﻿# 开放接口 · 第三批
 
 名字汉化、版本族、出图、配方。
 
@@ -149,7 +149,7 @@ Content-Type: application/json
 
 返回 `{ jobId, count }`，走任务系统看进度。
 
-服务端会调 `D:\Comfy-Desktop\studio\tools\comfy\gen.mjs`：
+服务端会调 `<ComfyUI 安装目录>\studio\tools\comfy\gen.mjs`：
 
 ```
 node gen.mjs --unet ... --clip ... --vae ...
