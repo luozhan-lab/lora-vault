@@ -15,6 +15,10 @@
   <img alt="local-first" src="https://img.shields.io/badge/data-local--only-b7791f?style=flat-square" />
 </p>
 
+<p align="center">
+  <b>中文</b> · <a href="README.en.md">English</a>
+</p>
+
 ---
 
 ![库页](docs/shot-library.png)
