@@ -2,6 +2,8 @@
 
 本地 LoRA 管理软件：把磁盘上所有 `.safetensors` 扫进来，按作品/分类/标签整理，每支带触发词、特征词、服装词、下载地址、预览图，并留一套 HTTP 接口给桌面端 AI 自动录入。
 
+![库页](docs/shot-library.png)
+
 ![创作页](docs/shot-create.png)
 
 ## 怎么开
