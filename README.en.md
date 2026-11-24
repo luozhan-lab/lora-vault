@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="public/v2/icon.svg" width="76" alt="Luozhan · LoRA-Vault" />
 </p>
 
@@ -43,7 +43,7 @@ From [Releases](../../releases/latest):
 | File | Purpose |
 |---|---|
 | `LoRA-Vault-1.0.0-setup.exe` | Windows installer (recommended) |
-| `Luozhan-1.0.0-win64.zip` | Portable build |
+| `洛栈-1.0.0-win64.zip` | Portable build |
 | `latest.json` | Auto-update manifest |
 
 > The installer is **not code-signed**, so Windows SmartScreen may warn about an unknown publisher. Choose "More info → Run anyway".

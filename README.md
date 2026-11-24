@@ -43,7 +43,7 @@
 | 文件 | 用途 |
 |---|---|
 | `LoRA-Vault-1.0.0-setup.exe` | Windows 安装包（推荐） |
-| `Luozhan-1.0.0-win64.zip` | 免安装版 |
+| `洛栈-1.0.0-win64.zip` | 免安装版 |
 | `latest.json` | 自动更新清单 |
 
 > 安装包目前**没有代码签名**，Windows SmartScreen 可能提示「未知发布者」。选择「更多信息 → 仍要运行」即可。
