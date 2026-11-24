@@ -2,6 +2,7 @@
 
 本地 LoRA 管理软件：把磁盘上所有 `.safetensors` 扫进来，按作品/分类/标签整理，每支带触发词、特征词、服装词、下载地址、预览图，并留一套 HTTP 接口给桌面端 AI 自动录入。
 
+![创作页](docs/shot-create.png)
 
 ## 怎么开
 
@@ -28,7 +29,6 @@ node server.mjs
 
 ## 出图（2026-11-23 重做）
 
-
 顶栏「出图」进入**独立的出图页**（不是弹窗）：左边选模型 / 角色 / LoRA，中间写场景、点快捷词，右边是结果墙和最近出的图；点「回库」回到列表。四步，全给默认值，不调也能出：
 
 1. **选模型**：整包 checkpoint 或分离式底模（自动配文本编码器 / VAE；高级里能改）
@@ -43,6 +43,14 @@ node server.mjs
 **换模型转画风（两段式）**：勾上「出完换个模型转画风」。第一段用模型 A 出图，第二段用模型 B + 第二段画风 LoRA 做图生图，denoise 分轻 / 标准 / 重三档（0.45 / 0.6 / 0.75）。第二段可以换整包也可以换分离式底模，内容词不动、只换画风。
 
 > 出图直接连 `comfyUrl` 那个 ComfyUI，不需要外面的 `gen.mjs`。ComfyUI 没开时面板会亮黄字，点出图也会明说「先打开 Comfy Desktop」。
+
+![出图参数](docs/shot-create-2.png)
+
+![专家模式](docs/shot-expert.png)
+
+![专家页参数](docs/shot-expert-2.png)
+
+![两段式](docs/shot-expert-3.png)
 
 ## 三块老功能
 
@@ -81,6 +89,10 @@ node server.mjs
 
 第一次启动会自动扫描 `D:\Loras`，把没入库的补进来（不读元数据，很快）。
 需要把训练标签、底模一起补上的，点界面上的「扫描磁盘」（会读 safetensors 头部，1111 支大概一两分钟）。
+
+![词表](docs/shot-words.png)
+
+![图库](docs/shot-gallery.png)
 
 ## 数据从哪来
 

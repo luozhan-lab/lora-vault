@@ -34,6 +34,7 @@ DEVLOG.md
 
 # 截图：界面里的预览图可能含成人向内容，不进仓库。要放之前先重截干净的。
 docs/*.png
+!docs/shot-*.png
 !docs/icon-*.png
 publish/img/*.png
 !publish/img/icon.png
