@@ -62,8 +62,11 @@ fs.cpSync(path.join(appDir, 'assets'), path.join(resApp, 'assets'), { recursive:
 fs.writeFileSync(path.join(resApp, 'package.json'), JSON.stringify({
   name: 'lora-library',
   productName: '洛栈 LoRA-Vault',
-  version: '1.0.0',
+  /* 版本只认根 package.json，别写死 —— 写死过 1.0.0，1.1.0 的包自报还是旧版，自动更新会一直当自己是旧的 */
+  version: JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8').replace(/^\uFEFF/, '')).version,
   main: 'main.js',
+  /* 公开包打标记：main.js 看到 channel=release 就禁用 --dev（开发版只留给内部） */
+  ...(PUBLIC ? { channel: 'release' } : {}),
 }, null, 2), 'utf8');
 const defApp = path.join(installRoot, 'resources', 'default_app.asar');
 if (fs.existsSync(defApp)) fs.rmSync(defApp);
@@ -85,14 +88,15 @@ if (PUBLIC) {
 }
 
 // exe 的图标和版本信息（装不上 rcedit 就跳过，不影响用）
+const APP_VERSION = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8').replace(/^\uFEFF/, '')).version;
 try {
   const require = (await import('node:module')).createRequire(import.meta.url);
   const mod = require('rcedit');
   const rcedit = mod.rcedit || mod.default || mod;
   await rcedit(exePath, {
     icon: path.join(resApp, 'assets', 'icon.ico'),
-    'file-version': '1.0.0',
-    'product-version': '1.0.0',
+    'file-version': APP_VERSION,
+    'product-version': APP_VERSION,
     'version-string': {
       CompanyName: 'local',
       FileDescription: '洛栈 LoRA-Vault — 本地 LoRA 管理器',

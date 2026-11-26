@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <img src="public/v2/icon.svg" width="76" alt="洛栈 · LoRA-Vault" />
 </p>
 
@@ -183,7 +183,7 @@ https://github.com/<owner>/<repo>/releases/latest/download/latest.json
 
 ## 隐私
 
-- 库数据默认在 `%APPDATA%\LoRA 库\data`
+- 库数据默认在 `%APPDATA%\LoRA-Vault\data`（老版本是 `%APPDATA%\LoRA 库`，第一次启动会自动复制过去）
 - 预览图、缩略图、出图记录都在本机
 - 后端只监听 `127.0.0.1`
 - 不发送遥测；不扫描与 LoRA 无关的文件

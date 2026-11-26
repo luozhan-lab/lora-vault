@@ -8,6 +8,7 @@ import { execFile, spawn } from 'node:child_process';
 import { loadConfig, saveConfig, ensureDirs, PUBLIC_DIR, PREVIEW_DIR, ROOT, DATA_DIR } from './lib/config.mjs';
 import { db, logEvent } from './lib/db.mjs';
 import { backfillTriggers, setTriggers, organizeTriggers, splitTriggerEntries } from './lib/triggers.mjs';
+import { categoryTree, createCategory, renameCategory, deleteCategory, setLoraCategory, ensureCategories } from './lib/categories.mjs';
 import { trainedWordList } from './lib/safetensors.mjs';
 import {
   searchLoras, getLora, upsertLora, patchLora, deleteLora, stats, facets,
@@ -129,6 +130,12 @@ try {
   if (n) console.log(`[trigger] 已整理 ${n} 条 LoRA 的逐条触发词`);
 } catch (e) {
   console.warn('[trigger] 回填失败：' + (e.message || e));
+}
+try {
+  const c = ensureCategories();
+  if (!c.seeded) console.log('[category] 已建默认分类并迁移旧数据');
+} catch (e) {
+  console.warn('[category] 初始化失败：' + (e.message || e));
 }
 
 const args = process.argv.slice(2);
@@ -902,6 +909,56 @@ async function route(req, res) {
     const body = await readJson(req).catch(() => ({}));
     const job = startJob('出图', (ctx) => runGenerate(ctx, body));
     return json(res, 202, { jobId: job.id });
+  }
+
+  /* ---------- 分类树 ---------- */
+  if (p === '/api/categories' && method === 'GET') {
+    return json(res, 200, { items: categoryTree() });
+  }
+  if (p === '/api/categories' && method === 'POST') {
+    if (!requireToken(req, res, url)) return;
+    const body = await readJson(req).catch(() => ({}));
+    try {
+      const cat = createCategory({ name: body.name, parentId: body.parent_id || body.parent || null });
+      logEvent('category_create', null, 'api', cat.name);
+      return json(res, 200, cat);
+    } catch (e) {
+      return json(res, 400, { error: e.message });
+    }
+  }
+  const mCategory = p.match(/^\/api\/categories\/(\d+)$/);
+  if (mCategory && method === 'PATCH') {
+    if (!requireToken(req, res, url)) return;
+    const body = await readJson(req).catch(() => ({}));
+    try {
+      const cat = renameCategory(Number(mCategory[1]), body.name);
+      logEvent('category_rename', null, 'api', cat.name);
+      return json(res, 200, cat);
+    } catch (e) {
+      return json(res, 400, { error: e.message });
+    }
+  }
+  if (mCategory && method === 'DELETE') {
+    if (!requireToken(req, res, url)) return;
+    try {
+      const out = deleteCategory(Number(mCategory[1]));
+      logEvent('category_delete', null, 'api', `${mCategory[1]} removed=${out.removed} unassigned=${out.unassigned}`);
+      return json(res, 200, out);
+    } catch (e) {
+      return json(res, 400, { error: e.message });
+    }
+  }
+  const mLoraCategory = p.match(/^\/api\/loras\/(\d+)\/category$/);
+  if (mLoraCategory && method === 'POST') {
+    if (!requireToken(req, res, url)) return;
+    const body = await readJson(req).catch(() => ({}));
+    try {
+      const out = setLoraCategory(Number(mLoraCategory[1]), body.category_id || null);
+      logEvent('lora_category', Number(mLoraCategory[1]), 'api', out.category_path);
+      return json(res, 200, out);
+    } catch (e) {
+      return json(res, 400, { error: e.message });
+    }
   }
 
   /* ---------- 列表 / 详情 ---------- */

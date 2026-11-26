@@ -44,3 +44,6 @@ publish/
 
 # 宣传片中间素材（成片走 Release / 另传）
 promo/
+
+# 发版产物（本地存档，不进仓库）
+release/

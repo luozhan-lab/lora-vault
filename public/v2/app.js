@@ -248,7 +248,7 @@ const OUTFIT_LABELS = {
 
 /* 额外服装：不绑场景，任何场景下都能选（露骨的那些在 ADULT_OUTFITS 里，正常模式会滤掉） */
 const EXTRA_OUTFITS = [
-  'maid outfit, white apron, black dress, white thighhighs', 'nurse outfit, white dress, nurse cap, white pantyhose', 'flight attendant uniform, pencil skirt, black pantyhose, scarf', 'police uniform, short skirt, black pantyhose, boots', 'office lady, white blouse, pencil skirt, black pantyhose', 'idol costume, frilled skirt, white thighhighs, boots', 'cheerleader outfit, pleated skirt, white socks, sneakers', 'gym uniform, bloomers, white socks, sneakers', 'tennis outfit, pleated skirt, white socks, sneakers', 'baseball uniform, knee socks, cleats', 'armor, breastplate, gauntlets, greaves', 'military uniform, peaked cap, black boots, gloves', 'ninja outfit, black bodysuit, fishnet, tabi', 'cyberpunk outfit, techwear, neon accents, sneakers', 'yukata, obi, sandals, hair ornament', 'kimono, obi, tabi, sandals', 'cheongsam, black pantyhose, high heels, hair ornament', 'wedding dress, veil, white thighhighs, gloves', 'evening gown, black pantyhose, high heels, earrings', 'gothic lolita, frilled dress, black thighhighs, mary janes', 'miko outfit, white haori, red hakama, tabi', 'bunny suit, black pantyhose, high heels, bunny ears', 'latex dress, black pantyhose, high heels, gloves', 'leather jacket, black pants, boots, motorcycle', 'pajamas, white socks, slippers', 'one-piece swimsuit, sandals', 'bikini, straw hat, sandals', 'school swimsuit, swim cap, sandals', 'shibari, red rope, bound arms', 'bondage outfit, straps, harness, cuffs', 'lace babydoll, thighhighs, garter belt', 'crotchless bodysuit, thighhighs', 'wet clothes, wet shirt, see-through', 'casual clothes, cardigan, skirt, loafers', 'track suit, sneakers', 'sailor uniform, pleated skirt, white socks, loafers', 'school uniform, pleated skirt, black knee socks, loafers', 'hanfu, hair ornament, flats', 'princess dress, tiara, gloves', 'bodycon dress, high heels, earrings',
+  'flight attendant uniform, pencil skirt, black pantyhose, scarf', 'police uniform, short skirt, black pantyhose, boots', 'office lady, white blouse, pencil skirt, black pantyhose', 'idol costume, frilled skirt, white thighhighs, boots', 'cheerleader outfit, pleated skirt, white socks, sneakers', 'gym uniform, bloomers, white socks, sneakers', 'tennis outfit, pleated skirt, white socks, sneakers', 'baseball uniform, knee socks, cleats', 'armor, breastplate, gauntlets, greaves', 'military uniform, peaked cap, black boots, gloves', 'ninja outfit, black bodysuit, fishnet, tabi', 'cyberpunk outfit, techwear, neon accents, sneakers', 'yukata, obi, sandals, hair ornament', 'kimono, obi, tabi, sandals', 'cheongsam, black pantyhose, high heels, hair ornament', 'wedding dress, veil, white thighhighs, gloves', 'evening gown, black pantyhose, high heels, earrings', 'gothic lolita, frilled dress, black thighhighs, mary janes', 'miko outfit, white haori, red hakama, tabi', 'bunny suit, black pantyhose, high heels, bunny ears', 'latex dress, black pantyhose, high heels, gloves', 'leather jacket, black pants, boots, motorcycle', 'pajamas, white socks, slippers', 'one-piece swimsuit, sandals', 'bikini, straw hat, sandals', 'school swimsuit, swim cap, sandals', 'shibari, red rope, bound arms', 'bondage outfit, straps, harness, cuffs', 'lace babydoll, thighhighs, garter belt', 'crotchless bodysuit, thighhighs', 'wet clothes, wet shirt, see-through', 'casual clothes, cardigan, skirt, loafers', 'track suit, sneakers', 'sailor uniform, pleated skirt, white socks, loafers', 'school uniform, pleated skirt, black knee socks, loafers', 'hanfu, hair ornament, flats', 'princess dress, tiara, gloves', 'bodycon dress, high heels, earrings',
   'pinafore dress', 'raincoat', 'bomber jacket', 'puffer jacket', 'jersey', 'tennis outfit',
   'baseball uniform', 'track suit', 'polo shirt', 'gothic dress', 'princess dress', 'detective coat',
   'cape', 'poncho', 'denim jacket', 'leather jacket',
@@ -368,7 +368,7 @@ const OUTFIT_SETS = new Set([...OUTFIT_SET_ALLOW, ...OUTFIT_THEME_SETS.map(([t])
 
 const ACTION_LABELS = {
   'sitting': '坐着', 'standing': '站着', 'looking back': '回头看', 'reading': '看书',
-  'hand on cheek': '托腮', 'stretching': '伸懒腰', 'selfie': '自拍', 'eating': '吃东西',
+  'hand on cheek': '托腮', 'stretching': '伸懒腰', 'selfie': '自拍', 'taking selfie': '自拍', 'eating': '吃东西',
   'reaching out': '伸手', 'hugging each other': '拥抱', 'kissing': '接吻',
   'lying down': '躺着', 'lying on side': '侧躺', 'sleeping': '睡觉', 'walking': '走路',
   'hand in hair': '撩头发', 'in water': '下水', 'on bed': '在床上', 'on stomach': '趴着',
@@ -835,7 +835,6 @@ const SCENES = [
   { tag: 'sofa', label: '沙发', mode: 'r18', outfits: ['lingerie', 'camisole', 'undressed', 'completely nude', 'fishnet'], actions: ['sitting', 'lying down', 'kneeling', 'spread legs', 'missionary', 'spooning'], duoActions: ['missionary','cowgirl','spooning','kissing','hugging each other'] },
   { tag: 'love hotel', label: '情趣酒店', mode: 'r18', outfits: ['lingerie', 'bunny suit', 'completely nude', 'open shirt', 'latex', 'collar'], actions: ['on bed', 'on stomach', 'kneeling', 'spread legs', 'doggystyle', 'cowgirl', '69'], duoActions: ['missionary','cowgirl','reverse cowgirl','suspended congress','69','paizuri','fellatio','kissing'] },
   { tag: 'onsen', label: '温泉', mode: 'r18', outfits: ['bath towel', 'completely nude', 'wet clothes'], actions: ['sitting', 'standing', 'lying down', 'spread legs'], duoActions: ['spooning','lotus','kissing','standing sex'] },
-  { tag: 'shower', label: '淋浴', mode: 'r18', outfits: ['completely nude', 'bath towel', 'wet clothes'], actions: ['standing', 'sitting', 'against wall', 'masturbation'], duoActions: ['against wall','standing sex','fellatio','handjob'] },
   { tag: 'dressing room', label: '更衣室', mode: 'r18', outfits: ['lingerie', 'micro bikini', 'undressed', 'open shirt'], actions: ['standing', 'flashing', 'undressing', 'bent over'], duoActions: ['against wall','standing sex','lifted legs','kissing'] },
   { tag: 'public toilet', label: '公共厕所', mode: 'r18', outfits: ['undressed', 'open shirt', 'lingerie'], actions: ['standing', 'kneeling', 'spread legs', 'masturbation'], duoActions: ['against wall','standing sex','fellatio','kissing'] },
   { tag: 'garden', label: '庭院', mode: 'sfw', outfits: ['casual clothes', 'dress', 'sundress', 'kimono', 'white t-shirt'], actions: ['standing', 'walking', 'sitting', 'watering flowers', 'looking back'] },
@@ -859,7 +858,6 @@ const SCENES = [
   { tag: 'elevator', label: '电梯', mode: 'r18', outfits: ['office lady', 'open shirt', 'lingerie'], actions: ['standing', 'against wall', 'kneeling', 'bent over'], duoActions: ['against wall','standing sex','lifted legs','fellatio'] },
   { tag: 'parking garage', label: '停车场', mode: 'r18', outfits: ['trench coat', 'open shirt', 'undressed', 'leather jacket, black pants, boots, motorcycle', 'office lady, white blouse, pencil skirt, black pantyhose'], actions: ['standing', 'against wall', 'bent over', 'flashing'], duoActions: ['against wall','standing sex','bent over','lifted legs'] },
   { tag: 'tent', label: '帐篷', mode: 'r18', outfits: ['undressed', 'camisole', 'completely nude', 'casual clothes, cardigan, skirt, loafers', 'track suit, sneakers', 'pajamas, white socks, slippers'], actions: ['lying down', 'kneeling', 'cowgirl', 'spooning'], duoActions: ['spooning','cowgirl','missionary','kissing'] },
-  { tag: 'public bath', label: '浴场', mode: 'r18', outfits: ['bath towel', 'completely nude', 'wet clothes'], actions: ['standing', 'sitting', 'in water', 'spread legs'], duoActions: ['spooning','standing sex','lotus','kissing'] },
   { tag: 'backstage', label: '演出后台', mode: 'r18', outfits: ['stage costume', 'lingerie', 'open shirt', 'latex'], actions: ['standing', 'sitting', 'kneeling', 'against wall'], duoActions: ['against wall','standing sex','lifted legs','kissing'] },
   { tag: 'private theater', label: '私人影院', mode: 'r18', outfits: ['lingerie', 'camisole', 'completely nude'], actions: ['sitting', 'lying down', 'fellatio', 'cowgirl'], duoActions: ['cowgirl','fellatio','missionary','kissing'] },
   { tag: 'school field', label: '学校操场', mode: 'sfw', outfits: ['school uniform', 'gym clothes', 'sailor uniform', 'blouse'], actions: ['standing', 'walking', 'stretching', 'waving', 'looking back'] },
@@ -1234,9 +1232,9 @@ const EXTRA_ACTIONS_SFW = [
   /* 动作 = 正在干什么（走路 / 看书 / 做饭 / 接吻…）。
      手怎么放归 HANDS_*，身体怎么摆归 EXTRA_POSES_SFW，阶段归 STAGE_*，别混进来。 */
   "posing", "walking", "running", "jumping", "climbing stairs",
-  "looking back", "selfie", "taking photo", "stretching", "stretching arms",
+  "looking back", "taking selfie", "taking photo", "stretching", "stretching arms",
   "leaning out window", "waiting", "watching rain", "staring into distance",
-  "dozing off", "half asleep", "buried in scarf",
+  "dozing off", "buried in scarf",
   "cooking", "eating snack", "drinking tea", "bathing", "sunbathing",
   "petting cat", "writing", "reading", "sleeping", "eating", "praying",
   "playing guitar", "playing violin", "dancing ballet", "skateboarding", "riding scooter",
@@ -1368,7 +1366,7 @@ const HANDS_R18 = [
   ['抬下巴', 'lifting chin'], ['摸大腿', 'hand on thigh'], ['掰开腿', 'spreading legs'],
   ['抓头发', 'pulling hair'], ['捂嘴', 'covering mouth'], ['扶腰', 'holding hips'],
   ['摸臀', 'groping ass'], ['拉衣服', 'pulling clothes'], ['按头', 'pushing head down'],
-  ['掰开小穴', 'spreading pussy'], ['插入小穴', 'fingering herself'], ['捏乳头', 'pinching nipple'],
+  ['掰开小穴', 'spreading pussy'], ['捏乳头', 'pinching nipple'],
   ['揉阴蒂', 'rubbing clit'], ['双手叉腰', 'hands on hips'], ['托胸', 'lifting breasts'],
   ['解开扣子', 'unbuttoning'], ['拉下内裤', 'pulling down panties'], ['一手揉胸一手插入', 'one hand groping breast, one hand fingering'],
   ['一手揉胸一手掰开', 'one hand groping breast, one hand spreading pussy'], ['双手揉胸', 'both hands groping breasts'], ['双手掰开', 'both hands spreading pussy'],
@@ -1847,17 +1845,21 @@ function closeUndressModal() {
   $('#undressModal').classList.add('hidden');
 }
 const TATTOO_POSITIONS = [
-  ['无', ''], ['下腹·淫纹', 'pubic tattoo, womb tattoo'], ['后腰', 'tramp stamp'], ['大腿', 'thigh tattoo'],
+  ['无', ''], ['下腹', 'pubic tattoo'], ['后腰', 'tramp stamp'], ['大腿', 'thigh tattoo'],
   ['手臂', 'arm tattoo'], ['后背', 'back tattoo'], ['胸前', 'chest tattoo'], ['胸下', 'underboob tattoo'],
   ['脖子', 'neck tattoo'], ['肩', 'shoulder tattoo'], ['锁骨', 'collarbone tattoo'], ['舌', 'tongue tattoo'],
   ['私处', 'crotch tattoo'],
 ];
 /* 性器官附近的位置正常模式不显示；舌 / 后腰 / 胸下这类不算 */
-const ADULT_TATTOO_TAGS = new Set(TATTOO_POSITIONS
-  .filter(([, t]) => /pubic tattoo|crotch tattoo|womb tattoo|ass tattoo|hip tattoo|thigh tattoo, band tattoo/i.test(t))
-  .map(([, t]) => t));
+const ADULT_TATTOO_TAGS = new Set([
+  ...TATTOO_POSITIONS
+    .filter(([, t]) => /pubic tattoo|crotch tattoo|ass tattoo|hip tattoo|thigh tattoo, band tattoo/i.test(t))
+    .map(([, t]) => t),
+  /* 淫纹是图案不是位置，单独算成人 */
+  'womb tattoo',
+]);
 const TATTOO_PATTERNS = [
-  ['无', ''], ['心形', 'heart-shaped tattoo'], ['玫瑰', 'rose tattoo'], ['蝴蝶', 'butterfly tattoo'],
+  ['无', ''], ['淫纹', 'womb tattoo'], ['心形', 'heart-shaped tattoo'], ['玫瑰', 'rose tattoo'], ['蝴蝶', 'butterfly tattoo'],
   ['星星', 'star tattoo'], ['蛇', 'snake tattoo'], ['符文', 'rune tattoo'], ['魔法阵', 'magic circle tattoo'],
   ['藤蔓', 'vine tattoo'], ['樱花', 'cherry blossom tattoo'], ['龙', 'dragon tattoo'], ['翅膀', 'wing tattoo'],
   ['十字', 'cross tattoo'], ['月亮', 'moon tattoo'], ['条形码', 'barcode tattoo'], ['正字计数', 'tally marks'],
@@ -2198,7 +2200,8 @@ function buildSixRecipe() {
   const tattooPos = state.tattoo && (state.r18 || !ADULT_TATTOO_TAGS.has(state.tattoo)) ? state.tattoo : '';
   if (tattooPos) {
     pushLayer('body', tattooPos, 'user');
-    if (state.tattooPattern) pushLayer('body', state.tattooPattern, 'user');
+    /* 图案也过一遍成人过滤：淫纹这类正常模式不写 */
+    if (state.tattooPattern && (state.r18 || !ADULT_TATTOO_TAGS.has(state.tattooPattern))) pushLayer('body', state.tattooPattern, 'user');
     if (state.tattooGlow === 'on') pushLayer('body', 'glowing tattoo', 'user');
   }
 
@@ -2328,7 +2331,7 @@ const state = {
   advSlots: {},
   models: null,
   page: 'create',
-  lib: { q: '', category: '', work: '', tag: '', sort: 'name', preview: '', variants: false, offset: 0, total: 0, items: [], loading: false, done: false },
+  lib: { q: '', category: '', work: '', catId: '', tag: '', sort: 'name', preview: '', variants: false, offset: 0, total: 0, items: [], loading: false, done: false },
 };
 
 const isEnName = () => { try { return localStorage.getItem('v2-lang') === 'en'; } catch { return false; } };
@@ -3092,12 +3095,12 @@ const ADULT_ACTIONS = [
   /* 成人专属动作池：只放「单人正在做的成人行为」。
      体位 / 射精收尾在 DUO_*，半途阶段在 STAGE_*，姿势串在 EXTRA_POSES_SFW。 */
   'fingering herself', 'rubbing herself', 'masturbating through panties', 'masturbation',
-  'fingering', 'holding vibrator', 'vibrator', 'dildo',
-  'anal', 'riding pillow', 'pulling panties aside', 'hand on crotch',
+  'fingering', 'holding vibrator',
+  'riding pillow', 'pulling panties aside', 'hand on crotch',
   'hand between legs', 'spread pussy', 'presenting pussy', 'presenting breasts',
   'presenting', 'panty pull', 'bra lift', 'cupping breasts',
-  'holding own breasts', 'breast grab', 'underboob', 'sideboob',
-  'cleavage', 'nipple slip', 'cameltoe', 'exhibitionism',
+  'holding own breasts', 'breast grab',
+  'nipple slip', 'exhibitionism',
   'public nudity', 'flashing', 'grinding on him', 'licking lips',
   'arched back',
 ];
@@ -5653,6 +5656,7 @@ async function loadLibrary(reset = false) {
       q: state.lib.q,
       category: state.lib.category,
       work: state.lib.work,
+      catId: state.lib.catId,
       tag: state.lib.tag,
       limit: '60',
       offset: String(state.lib.offset),
@@ -6002,36 +6006,133 @@ function renderCivDetail(d, preferVersionId, summary) {
 }
 
 let facetsCache = null;
+let catTree = [];
+
+/* 树拍平（带层深），给下拉和查找用 */
+function catFlat(tree, depth = 0, out = []) {
+  for (const c of (tree || [])) {
+    out.push({ ...c, depth });
+    catFlat(c.children || [], depth + 1, out);
+  }
+  return out;
+}
+function findCat(id) {
+  return catFlat(catTree).find((c) => c.id === Number(id)) || null;
+}
 
 async function loadFacets() {
   try {
-    const f = await api('/api/facets');
-    facetsCache = f;
+    const [f, cats] = await Promise.all([api('/api/facets'), api('/api/categories')]);
+    facetsCache = f || {};
+    catTree = (cats && cats.items) || [];
     renderFacets();
   } catch { /* ignore */ }
+}
+
+const CAT_KIDS_PREVIEW = 10;
+
+function sortedKids(c) {
+  return [...(c.children || [])].sort((a, b) => (b.total - a.total) || a.name.localeCompare(b.name, 'zh-Hans-CN'));
 }
 
 function renderFacets() {
   if (!facetsCache) return;
   const total = (facetsCache.categories || []).reduce((s, c) => s + c.c, 0);
-  const cats = facetsCache.categories || [];
+  const cur = Number(state.lib.catId) || 0;
+  const open = state.lib.openCats || (state.lib.openCats = new Set());
   const catBox = $('#libCats');
   if (catBox) {
-    catBox.innerHTML = `<button class="side-item ${!state.lib.category ? 'on' : ''}" data-cat=""><span>全部</span><b>${total}</b></button>` +
-      cats.map((c) => `<button class="side-item ${state.lib.category === c.name ? 'on' : ''}" data-cat="${esc(c.name)}"><span>${esc(c.name)}</span><b>${c.c}</b></button>`).join('');
+    const row = (c) => {
+      const kids = sortedKids(c);
+      const isOpen = open.has(c.id);
+      const moreKey = -c.id;
+      const showAll = open.has(moreKey) || kids.length <= CAT_KIDS_PREVIEW;
+      const shown = showAll ? kids : kids.slice(0, CAT_KIDS_PREVIEW);
+      const on = cur === c.id;
+      return `<div class="cat-line">
+        <div class="side-item cat-item ${on ? 'on' : ''} ${!c.total ? 'cat-empty' : ''}" data-catid="${c.id}">
+          <button class="cat-caret ${kids.length ? '' : 'empty'} ${isOpen ? 'open' : ''}" data-togglecat="${c.id}" type="button">▸</button>
+          <span class="cat-label">${esc(c.name)}</span>
+          <b>${c.total || ''}</b>
+        </div>
+        ${kids.length && isOpen ? `<div class="cat-kids">${shown.map((k) =>
+          `<button class="side-item cat-kid ${cur === k.id ? 'on' : ''}" data-catid="${k.id}"><span>${esc(k.name)}</span><b>${k.total || ''}</b></button>`).join('')}
+          ${kids.length > CAT_KIDS_PREVIEW && !showAll ? `<button class="side-item cat-more" data-morecat="${c.id}">还有 ${kids.length - CAT_KIDS_PREVIEW} 个…</button>` : ''}
+        </div>` : ''}
+      </div>`;
+    };
+    catBox.innerHTML = `<button class="side-item ${!cur ? 'on' : ''}" data-catid=""><span>全部</span><b>${total}</b></button>` +
+      catTree.map((c) => row(c)).join('');
   }
-  const works = (facetsCache.works || []).filter((w) => !state.lib.category || w.category === state.lib.category).slice(0, 30);
-  if ($('#libWorksWrap')) {
-    $('#libWorksWrap').classList.toggle('hidden', !state.lib.category || !works.length);
-    if ($('#libWorks')) {
-      $('#libWorks').innerHTML = `<button class="side-item ${!state.lib.work ? 'on' : ''}" data-work=""><span>全部作品</span></button>` +
-        works.map((w) => `<button class="side-item ${state.lib.work === w.name ? 'on' : ''}" data-work="${esc(w.name)}"><span>${esc(w.name)}</span><b>${w.c}</b></button>`).join('');
-    }
-  }
+  /* 子分类直接在树里展开，右侧「作品」区就不用了 */
+  if ($('#libWorksWrap')) $('#libWorksWrap').classList.add('hidden');
   const tags = (facetsCache.tags || []).slice(0, 40);
   if ($('#libTags')) {
     $('#libTags').innerHTML = tags.map((t) => `<button class="tag ${state.lib.tag === t.name ? 'on' : ''}" data-tag="${esc(t.name)}">${esc(t.name)}</button>`).join('');
   }
+}
+
+/* ---------------- 分类管理 ---------------- */
+
+async function openCatManager() {
+  $('#catModal').classList.remove('hidden');
+  await loadFacets();
+  renderCatManager();
+}
+
+function renderCatManager() {
+  const open = state.catOpen || (state.catOpen = new Set());
+  const row = (c, depth) => {
+    const kids = sortedKids(c);
+    const isOpen = open.has(c.id);
+    const moreKey = -c.id;
+    const showAll = open.has(moreKey) || kids.length <= CAT_KIDS_PREVIEW;
+    const shown = showAll ? kids : kids.slice(0, CAT_KIDS_PREVIEW);
+    return `<div class="cat-row ${depth ? 'cat-sub' : ''}" style="padding-left:${8 + depth * 18}px">
+      <button class="cat-caret ${kids.length ? '' : 'empty'} ${isOpen ? 'open' : ''}" data-cattoggle="${c.id}" type="button">▸</button>
+      <span class="cat-name" data-renamecat="${c.id}" title="点一下改名">${esc(c.name)}</span>
+      <b>${c.total || ''}</b>
+      <span class="cat-acts"><button class="mini" data-delcat="${c.id}">删除</button></span>
+    </div>` +
+      (isOpen ? shown.map((k) => row(k, depth + 1)).join('') : '') +
+      (isOpen && kids.length > CAT_KIDS_PREVIEW && !showAll
+        ? `<div class="cat-more-row" style="padding-left:${8 + (depth + 1) * 18}px"><button class="mini" data-morecat="${c.id}">还有 ${kids.length - CAT_KIDS_PREVIEW} 个…</button></div>`
+        : '');
+  };
+  const list = $('#catList');
+  if (list) list.innerHTML = catTree.length ? catTree.map((c) => row(c, 0)).join('') : '<div class="hint">还没有分类</div>';
+  const parent = $('#catNewParent');
+  if (parent) {
+    const flat = catFlat(catTree);
+    parent.innerHTML = '<option value="">顶层</option>' + flat.map((c) =>
+      `<option value="${c.id}">${'　'.repeat(c.depth)}${esc(c.name)}</option>`).join('');
+  }
+}
+
+async function renameCatFlow(id) {
+  const cur = findCat(id);
+  if (!cur) return;
+  const name = prompt('改成一个新名字', cur.name);
+  if (!name || !name.trim() || name.trim() === cur.name) return;
+  try {
+    await write('/api/categories/' + id, { name: name.trim() }, 'PATCH');
+    toast('改好了');
+    await loadFacets();
+    renderCatManager();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function deleteCatFlow(id) {
+  const cur = findCat(id);
+  if (!cur) return;
+  if (!window.confirm(`删掉「${cur.path}」和它的子分类？\n里面的 ${cur.total} 支 LoRA 会回到「未分类」，不会删文件。`)) return;
+  try {
+    const r = await write('/api/categories/' + id, {}, 'DELETE');
+    toast(`删了 ${r.removed || 1} 个分类，${r.unassigned || 0} 支回到未分类`);
+    await loadFacets();
+    await loadLibrary(true);
+    renderCatManager();
+  } catch (e) { toast(e.message, true); }
 }
 
 function needsZhName(name) {
@@ -6136,9 +6237,9 @@ function renderDetail(row) {
     <button class="primary use" id="useChar">用它出图</button>
     <button class="ghost use" id="editLora" style="margin-top:7px">编辑</button>
     <div class="detail-manage">
-      <select id="moveCat">${((facetsCache && facetsCache.categories) || []).map((c) =>
-        `<option value="${esc(c.name)}" ${c.name === row.category ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
-      <button id="moveLora" class="ghost">移动</button>
+      <select id="moveCat"><option value="">未分类</option>${catFlat(catTree).map((c) =>
+        `<option value="${c.id}" ${Number(row.category_id) === c.id ? 'selected' : ''}>${'　'.repeat(c.depth)}${esc(c.name)}</option>`).join('')}</select>
+      <button id="moveLora" class="ghost">改分类</button>
       <button id="changePreview" class="ghost">换预览</button>
       <button id="deleteFile" class="ghost danger">删除文件</button>
       <button id="deleteLora" class="ghost danger">删除记录</button>
@@ -6226,11 +6327,10 @@ function renderDetail(row) {
     }
   };
   $('#moveLora').onclick = async () => {
-    const cat = $('#moveCat').value;
-    if (!cat) return;
+    const raw = $('#moveCat').value;
     try {
-      await write('/api/loras/' + row.id + '/move', { category: cat });
-      toast('已移动');
+      await write('/api/loras/' + row.id + '/category', { category_id: raw ? Number(raw) : null });
+      toast('分类已改');
       await loadFacets();
       await loadLibrary(true);
       openDetail(row.id);
@@ -7111,18 +7211,36 @@ async function boot() {
   $('#topCreate').onclick = () => switchPage('create');
   $('#libQ').oninput = debounce(() => { state.lib.q = $('#libQ').value.trim(); loadLibrary(true); }, 260);
   $('#libCats').onclick = (e) => {
-    const b = e.target.closest('[data-cat]');
+    const more = e.target.closest('[data-morecat]');
+    if (more) {
+      const id = -Number(more.dataset.morecat);
+      const open = state.lib.openCats || (state.lib.openCats = new Set());
+      open.add(id);
+      renderFacets();
+      return;
+    }
+    const tg = e.target.closest('[data-togglecat]');
+    if (tg) {
+      const id = Number(tg.dataset.togglecat);
+      const open = state.lib.openCats || (state.lib.openCats = new Set());
+      if (open.has(id)) open.delete(id); else open.add(id);
+      renderFacets();
+      return;
+    }
+    const b = e.target.closest('[data-catid]');
     if (!b) return;
-    state.lib.category = b.dataset.cat;
+    state.lib.catId = b.dataset.catid || '';
+    state.lib.category = '';
     state.lib.work = '';
     state.lib.tag = '';
     renderFacets();
     loadLibrary(true);
   };
   $('#libWorks').onclick = (e) => {
-    const b = e.target.closest('[data-work]');
+    const b = e.target.closest('[data-subcat]');
     if (!b) return;
-    state.lib.work = b.dataset.work;
+    state.lib.catId = b.dataset.subcat || '';
+    state.lib.work = '';
     renderFacets();
     loadLibrary(true);
   };
@@ -7173,15 +7291,50 @@ async function boot() {
     };
   }
   $('#civQ').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); searchCivitai(); } };
-  $('#libAddCat').onclick = async () => {
-    const name = prompt('新建一级分类的名字');
-    if (!name || !name.trim()) return;
-    try {
-      await write('/api/loras/dirs', { name: name.trim() });
-      toast('分类已建');
-      await loadFacets();
-    } catch (e) { toast(e.message, true); }
-  };
+  $('#libAddCat').onclick = openCatManager;
+  if ($('#libCatMgr')) $('#libCatMgr').onclick = openCatManager;
+  if ($('#catClose')) $('#catClose').onclick = () => $('#catModal').classList.add('hidden');
+  if ($('#catModal')) {
+    $('#catModal').onclick = (e) => { if (e.target.id === 'catModal') $('#catModal').classList.add('hidden'); };
+  }
+  if ($('#catList')) {
+    $('#catList').onclick = (e) => {
+      const more = e.target.closest('[data-morecat]');
+      if (more) {
+        const id = -Number(more.dataset.morecat);
+        const open = state.catOpen || (state.catOpen = new Set());
+        open.add(id);
+        renderCatManager();
+        return;
+      }
+      const tg = e.target.closest('[data-cattoggle]');
+      if (tg) {
+        const id = Number(tg.dataset.cattoggle);
+        const open = state.catOpen || (state.catOpen = new Set());
+        if (open.has(id)) open.delete(id); else open.add(id);
+        renderCatManager();
+        return;
+      }
+      const ren = e.target.closest('[data-renamecat]');
+      if (ren) { renameCatFlow(Number(ren.dataset.renamecat)); return; }
+      const del = e.target.closest('[data-delcat]');
+      if (del) deleteCatFlow(Number(del.dataset.delcat));
+    };
+  }
+  if ($('#catNewAdd')) {
+    $('#catNewAdd').onclick = async () => {
+      const name = ($('#catNewName').value || '').trim();
+      if (!name) return;
+      const parentId = $('#catNewParent').value;
+      try {
+        await write('/api/categories', { name, parent_id: parentId ? Number(parentId) : null });
+        $('#catNewName').value = '';
+        toast('分类已建');
+        await loadFacets();
+        renderCatManager();
+      } catch (e) { toast(e.message, true); }
+    };
+  }
   $('#scanLib').onclick = async () => {
     const btn = $('#scanLib');
     btn.disabled = true;

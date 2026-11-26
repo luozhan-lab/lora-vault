@@ -7,20 +7,45 @@ const http = require('node:http');
 const { spawn } = require('node:child_process');
 
 /* 开发版：同一个 exe 加 --dev（或设 LORA_DEV=1）。
-   正式版：调试端口不开、数据在 %APPDATA%\LoRA 库、端口 8787。
-   开发版：userData 另开一份（%APPDATA%\洛栈（开发））、端口 8788、自动开 CDP 9222。 */
-const DEV = process.argv.includes('--dev') || process.env.LORA_DEV === '1';
+   正式版：调试端口不开、数据在 %APPDATA%\LoRA-Vault、端口 8787。
+   开发版：userData 另开一份（%APPDATA%\LoRA-Vault-Dev）、端口 8789、自动开 CDP 9222。 */
+/* 发行版标记：桌面壳 package.json 里 channel=release 时，--dev / LORA_DEV 一律无效。
+   公开包不能带着「开发版全放开」的开关出门，否则等于把内部入口交给用户。 */
+const IS_RELEASE = (() => {
+  try {
+    const raw = fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8').replace(/^\uFEFF/, '');
+    return JSON.parse(raw).channel === 'release';
+  } catch { return false; }
+})();
+const DEV = !IS_RELEASE && (process.argv.includes('--dev') || process.env.LORA_DEV === '1');
 
-/* 改名后 productName 从「LoRA 库」变成「洛栈 LoRA-Vault」，Electron 的 userData 会跟着换目录，
-   老用户的窗口状态 / 语言 / localStorage / data 就变成"丢了"。老目录在就继续用它。 */
+/* 路径全英文：数据目录统一放 %APPDATA%\LoRA-Vault（开发版 LoRA-Vault-Dev）。
+   老用户的数据在 %APPDATA%\LoRA 库，第一次启动复制过去；复制失败才回退老目录，别把库弄丢。 */
+const USERDATA_DIR = path.join(app.getPath('appData'), 'LoRA-Vault');
+const LEGACY_USERDATA = path.join(app.getPath('appData'), 'LoRA 库');
+const DEV_USERDATA = path.join(app.getPath('appData'), 'LoRA-Vault-Dev');
 try {
   if (DEV) {
-    const devDir = path.join(app.getPath('appData'), '洛栈（开发）');
-    fs.mkdirSync(devDir, { recursive: true });
-    app.setPath('userData', devDir);
+    /* 开发版老数据在「洛栈（开发）」，路径改英文后新目录是空壳时补迁一次 */
+    const legacyDev = path.join(app.getPath('appData'), '洛栈（开发）');
+    const devDb = path.join(DEV_USERDATA, 'data', 'lora.db');
+    if (!fs.existsSync(devDb) && fs.existsSync(path.join(legacyDev, 'data', 'lora.db'))) {
+      try { fs.cpSync(legacyDev, DEV_USERDATA, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
+    fs.mkdirSync(DEV_USERDATA, { recursive: true });
+    app.setPath('userData', DEV_USERDATA);
   } else {
-    const legacyUserData = path.join(app.getPath('appData'), 'LoRA 库');
-    if (fs.existsSync(legacyUserData)) app.setPath('userData', legacyUserData);
+    let migrated = fs.existsSync(USERDATA_DIR);
+    if (!migrated && fs.existsSync(LEGACY_USERDATA)) {
+      try {
+        fs.cpSync(LEGACY_USERDATA, USERDATA_DIR, { recursive: true });
+        migrated = true;
+      } catch { migrated = false; }
+    }
+    if (!migrated && fs.existsSync(USERDATA_DIR)) migrated = true;
+    const dir = migrated ? USERDATA_DIR : LEGACY_USERDATA;
+    fs.mkdirSync(dir, { recursive: true });
+    app.setPath('userData', dir);
   }
 } catch { /* ignore */ }
 

@@ -102,7 +102,7 @@ const readme = `# 洛栈 · LoRA-Vault 公开版 ${version}
 
 菜单「文件 → 打开数据目录」可以直接打开。
 
-卸载：删除 \`LoraLibrary\` 文件夹，再删除 AppData 下的洛栈数据目录（%APPDATA%\LoRA 库）。
+卸载：删除 \`LoraLibrary\` 文件夹，再删除 AppData 下的洛栈数据目录（%APPDATA%\LoRA-Vault）。
 删除数据目录会丢掉洛栈记录、配置、预览和出图台账。
 
 ## 签名 / SmartScreen
@@ -168,7 +168,7 @@ if (process.env.LORA_SKIP_ZIP === '1') {
   console.log('5/5 跳过压缩（LORA_SKIP_ZIP=1）');
 } else {
   console.log('5/5 压缩 zip…');
-  const zip = path.join(releaseRoot, `洛栈-${version}-win64.zip`);
+  const zip = path.join(releaseRoot, `LoRA-Vault-${version}-win64.zip`);
   const psQuote = (s) => s.replaceAll("'", "''");
   try {
     execFileSync('powershell.exe', ['-NoProfile', '-Command',

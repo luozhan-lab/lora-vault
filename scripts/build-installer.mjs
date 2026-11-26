@@ -4,11 +4,11 @@
  * 做法：用系统自带 csc 把发布包 app.zip 作为嵌入资源，编一个 WinForms 安装向导，
  * 不依赖 NSIS / electron-builder / 网络。
  *
- * 输入：dist/release/洛栈-<版本>-win64.zip
+ * 输入：dist/release/LoRA-Vault-<版本>-win64.zip
  * 输出：dist/installer/LoRA-Vault-<版本>-setup.exe
  *
  * 界面：安装位置输入框 + 「浏览…」文件夹选择 + 安装进度 + 完成自动启动
- * 安装：写快捷方式、HKCU 卸载项；数据仍在 %APPDATA%\LoRA 库\data
+ * 安装：写快捷方式、HKCU 卸载项；数据在 %APPDATA%\LoRA-Vault\data
  *
  * 自测（不弹界面，不碰真实安装）：
  *   $env:LORA_SETUP_TEST='1'; .\<setup>.exe [/D=自定义目录]
@@ -16,7 +16,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -24,7 +24,7 @@ const root = path.resolve(here, '..');
 const APP_VERSION = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8').replace(/^\uFEFF/, '')).version || '1.0.0';
 const stage = path.join(root, 'dist', 'installer', 'stage');
 const outDir = path.join(root, 'dist', 'installer');
-const zipSrc = path.join(root, 'dist', 'release', `洛栈-${APP_VERSION}-win64.zip`);
+const zipSrc = path.join(root, 'dist', 'release', `LoRA-Vault-${APP_VERSION}-win64.zip`);
 const setupExe = path.join(outDir, `LoRA-Vault-${APP_VERSION}-setup.exe`);
 const icon = path.join(root, 'desktop', 'assets', 'icon.ico');
 const fw = path.join(process.env.WINDIR || 'C:\\Windows', 'Microsoft.NET', 'Framework64', 'v4.0.30319');
@@ -203,25 +203,7 @@ static class Core
             }
             catch { }
         }
-        /* 开发版：同一个 exe 带 --dev，数据另开一份、开 CDP 9222、标题带「开发」 */
-        string[] devLinks = new string[] {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "洛栈（开发）.lnk")
-        };
-        foreach (string link in devLinks)
-        {
-            try
-            {
-                object sc = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { link });
-                Type t = sc.GetType();
-                t.InvokeMember("TargetPath", BindingFlags.SetProperty, null, sc, new object[] { exe });
-                t.InvokeMember("Arguments", BindingFlags.SetProperty, null, sc, new object[] { "--dev" });
-                t.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, sc, new object[] { dest });
-                if (File.Exists(iconPath)) t.InvokeMember("IconLocation", BindingFlags.SetProperty, null, sc, new object[] { iconPath + ",0" });
-                t.InvokeMember("Description", BindingFlags.SetProperty, null, sc, new object[] { "洛栈 开发版 — 独立数据 + 调试端口 9222" });
-                t.InvokeMember("Save", BindingFlags.InvokeMethod, null, sc, null);
-            }
-            catch { }
-        }
+        /* 公开包不建「开发版」快捷方式：开发入口只留给内部 */
     }
 
     static void RegisterUninstall(string dest, string exe)
@@ -257,6 +239,7 @@ static class Core
         cmd += "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\LoRA-Library\" /f >nul 2>&1\r\n";
         cmd += "choice /M \"Also delete data (records / config / previews)?\"\r\n";
         cmd += "if errorlevel 2 goto keep\r\n";
+        cmd += "rmdir /s /q \"%APPDATA%\\LoRA-Vault\"\r\n";
         cmd += "rmdir /s /q \"%APPDATA%\\LoRA 库\"\r\n";
         cmd += ":keep\r\n";
         cmd += "start \"\" /min \"" + helper + "\"\r\n";
@@ -290,7 +273,7 @@ class InstallForm : Form
         Controls.Add(head);
 
         Label hint = new Label();
-        hint.Text = "程序装到这里；洛栈数据仍保存在 %APPDATA%\\LoRA 库\\data。";
+        hint.Text = "程序装到这里；洛栈数据保存在 %APPDATA%\\LoRA-Vault\\data。";
         hint.ForeColor = Color.Gray;
         hint.SetBounds(20, 46, 540, 20);
         Controls.Add(hint);
@@ -473,6 +456,26 @@ if (!fs.existsSync(setupExe)) {
 }
 const mb = (fs.statSync(setupExe).size / 1048576).toFixed(1);
 console.log('完成：' + setupExe + ' (' + mb + ' MB)');
+
+/* 安装器外壳也要写版本信息：右键属性不能是 0.0.0.0 / 产品名空 */
+try {
+  const rceditUrl = pathToFileURL(path.join(root, 'desktop', 'node_modules', 'rcedit', 'lib', 'rcedit.js')).href;
+  const rmod = await import(rceditUrl);
+  const rcedit = rmod.rcedit || rmod.default;
+  await rcedit(setupExe, {
+    'file-version': APP_VERSION,
+    'product-version': APP_VERSION,
+    'version-string': {
+      ProductName: '洛栈 LoRA-Vault',
+      FileDescription: '洛栈 LoRA-Vault 安装程序',
+      CompanyName: 'local',
+      OriginalFilename: `LoRA-Vault-${APP_VERSION}-setup.exe`,
+    },
+  });
+  console.log('安装器版本信息已写进 setup.exe');
+} catch (e) {
+  console.warn('安装器版本信息没写进去：' + (e && e.message ? e.message : e));
+}
 
 const pfx = process.env.LORA_SIGN_PFX || '';
 if (pfx) {

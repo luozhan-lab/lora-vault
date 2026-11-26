@@ -31,15 +31,20 @@ fs.mkdirSync(backend, { recursive: true });
 fs.mkdirSync(desktopOut, { recursive: true });
 
 console.log('2/4 复制后端（不含 data）…');
+/* 开发期留的备份（app.js.bak-*、*.orig）绝对不能进发布包：
+   文件名里带着改动顺序和内部叫法，用户解压就能看见。 */
+const NO_BACKUP = (src) => !/[\\/][^\\/]+\.(bak|orig|tmp)(-[^\\/]*)?$/.test(src) && !/[\\/]~/.test(src);
 for (const f of ['server.mjs', 'package.json', 'package-lock.json']) {
   copy(path.join(root, f), path.join(backend, f));
 }
 for (const d of ['lib', 'public']) {
-  copy(path.join(root, d), path.join(backend, d));
+  copy(path.join(root, d), path.join(backend, d), { filter: NO_BACKUP });
 }
 copy(path.join(root, 'LICENSE'), path.join(backend, 'LICENSE'));
 copy(path.join(root, 'node_modules'), path.join(backend, 'node_modules'), {
-  filter: (src) => !/[\\/](\.cache|\.bin)([\\/]|$)/.test(src),
+  /* undici 的 docs/types 是开发文档，运行用不到，别白占体积 */
+  filter: (src) => !/[\\/](\.cache|\.bin)([\\/]|$)/.test(src)
+    && !/[\\/]undici[\\/](docs|types)([\\/]|$)/.test(src),
 });
 
 console.log('3/4 复制桌面壳…');
@@ -98,6 +103,21 @@ for (const b of banned) {
     process.exit(1);
   }
 }
+
+/* 备份文件（app.js.bak-*、*.orig）也不能进包：文件名里带着改动顺序和内部叫法 */
+const walkBak = (dir) => {
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (ent.name === 'node_modules') continue;
+    const p = path.join(dir, ent.name);
+    if (ent.isDirectory()) { walkBak(p); continue; }
+    if (/\.(bak|orig|tmp)(-[^.]*)?$/i.test(ent.name)) {
+      console.error('发布包里发现备份文件：' + p);
+      process.exit(1);
+    }
+  }
+};
+walkBak(backend);
+walkBak(desktopOut);
 
 const personal = /C:\\Users\\16500|D:\\AI资产库|D:\\Comfy-Desktop\\studio/i;
 const scan = (dir) => {

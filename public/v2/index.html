@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>洛栈 · LoRA-Vault</title>
 <link rel="icon" type="image/svg+xml" href="/v2/icon.svg?v=20261124icon">
-<link rel="stylesheet" href="/v2/app.css?v=202611261724">
+<link rel="stylesheet" href="/v2/app.css?v=202611261951">
 </head>
 <body>
 <div id="titlebar" class="titlebar hidden">
@@ -777,7 +777,7 @@
         <div class="lib-layout">
           <aside class="lib-side">
             <div class="side-sec">
-              <div class="side-head"><h3>分类</h3><button id="libAddCat" class="mini" title="新建分类">＋</button></div>
+              <div class="side-head"><h3>分类</h3><button id="libAddCat" class="mini" title="新建分类">＋</button><button id="libCatMgr" class="mini" title="管理分类">⋯</button></div>
               <div id="libCats" class="side-list"><button class="side-item on" data-cat=""><span>全部</span><b>946</b></button><button class="side-item " data-cat="角色"><span>角色</span><b>752</b></button><button class="side-item " data-cat="服装"><span>服装</span><b>97</b></button><button class="side-item " data-cat="辅助Lora"><span>辅助Lora</span><b>89</b></button><button class="side-item " data-cat="自己的"><span>自己的</span><b>5</b></button><button class="side-item " data-cat="AI娘"><span>AI娘</span><b>3</b></button></div>
             </div>
             <div id="libWorksWrap" class="side-sec hidden">
@@ -977,6 +977,22 @@
         </div>
       </section>
     </main>
+  </div>
+</div>
+
+<div id="catModal" class="gate hidden">
+  <div class="gate-card cat-card">
+    <div class="tag-head">
+      <div><span class="gate-mark">CATEGORY</span><h1>分类管理</h1></div>
+      <button id="catClose" class="mini" type="button">关闭</button>
+    </div>
+    <p class="hint">点名字直接改名。删除会把里面的 LoRA 退回「未分类」，子分类一起删。</p>
+    <div id="catList" class="cat-list"></div>
+    <div class="cat-add">
+      <input id="catNewName" placeholder="新分类名" autocomplete="off">
+      <select id="catNewParent"></select>
+      <button id="catNewAdd" class="primary mini-primary">新建</button>
+    </div>
   </div>
 </div>
 
@@ -1276,7 +1292,7 @@ https://civitai.com/models/yyyyy"></textarea></label>
 </div>
 
 <script src="/v2/i18n.js?v=202611261620"></script>
-<script src="/v2/app.js?v=202611261724"></script>
+<script src="/v2/app.js?v=202611261951"></script>
 
 
 </body></html>

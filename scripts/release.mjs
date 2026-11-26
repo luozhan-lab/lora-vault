@@ -12,7 +12,7 @@
  *   --skip-build 不发包，只按现有 dist 里的东西重算清单
  *
  * 产物：
- *   dist/release/洛栈-<版本>-win64.zip
+ *   dist/release/LoRA-Vault-<版本>-win64.zip
  *   dist/installer/LoRA-Vault-<版本>-setup.exe
  *   dist/latest.json        ← 这个和 setup.exe 一起传上去；设置页「更新清单地址」填它的 URL
  */
@@ -71,7 +71,7 @@ if (skipBuild) {
   execFileSync(process.execPath, [path.join(root, 'scripts', 'build-installer.mjs')], { cwd: root, stdio: 'inherit' });
 }
 
-const zip = path.join(root, 'dist', 'release', `洛栈-${version}-win64.zip`);
+const zip = path.join(root, 'dist', 'release', `LoRA-Vault-${version}-win64.zip`);
 const setup = path.join(root, 'dist', 'installer', `LoRA-Vault-${version}-setup.exe`);
 for (const f of [zip, setup]) {
   if (!fs.existsSync(f)) {
