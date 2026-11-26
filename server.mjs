@@ -8,7 +8,7 @@ import { execFile, spawn } from 'node:child_process';
 import { loadConfig, saveConfig, ensureDirs, PUBLIC_DIR, PREVIEW_DIR, ROOT, DATA_DIR } from './lib/config.mjs';
 import { db, logEvent } from './lib/db.mjs';
 import { backfillTriggers, setTriggers, organizeTriggers, splitTriggerEntries } from './lib/triggers.mjs';
-import { categoryTree, createCategory, renameCategory, deleteCategory, setLoraCategory, ensureCategories } from './lib/categories.mjs';
+import { categoryTree, createCategory, renameCategory, deleteCategory, setLoraCategory, ensureCategories, restoreDefaultCategories } from './lib/categories.mjs';
 import { trainedWordList } from './lib/safetensors.mjs';
 import {
   searchLoras, getLora, upsertLora, patchLora, deleteLora, stats, facets,
@@ -915,6 +915,16 @@ async function route(req, res) {
   if (p === '/api/categories' && method === 'GET') {
     return json(res, 200, { items: categoryTree() });
   }
+  if (p === '/api/categories/restore' && method === 'POST') {
+    if (!requireToken(req, res, url)) return;
+    try {
+      const out = restoreDefaultCategories();
+      logEvent('category_restore', null, 'api', `补回 ${out.added} 个`);
+      return json(res, 200, out);
+    } catch (e) {
+      return json(res, 400, { error: e.message });
+    }
+  }
   if (p === '/api/categories' && method === 'POST') {
     if (!requireToken(req, res, url)) return;
     const body = await readJson(req).catch(() => ({}));
@@ -956,6 +966,24 @@ async function route(req, res) {
       const out = setLoraCategory(Number(mLoraCategory[1]), body.category_id || null);
       logEvent('lora_category', Number(mLoraCategory[1]), 'api', out.category_path);
       return json(res, 200, out);
+    } catch (e) {
+      return json(res, 400, { error: e.message });
+    }
+  }
+  /* 批量操作：多选一堆 LoRA 一次改分类 */
+  if (p === '/api/loras/batch' && method === 'POST') {
+    if (!requireToken(req, res, url)) return;
+    const body = await readJson(req).catch(() => ({}));
+    const ids = Array.isArray(body.ids) ? body.ids.map((x) => Number(x)).filter(Boolean).slice(0, 5000) : [];
+    if (!ids.length) return json(res, 400, { error: '没选东西' });
+    try {
+      if (body.action === 'category') {
+        const target = body.category_id ? Number(body.category_id) : null;
+        for (const id of ids) setLoraCategory(id, target);
+        logEvent('batch_category', null, 'api', `${ids.length} 支 → ${target || '未分类'}`);
+        return json(res, 200, { updated: ids.length });
+      }
+      return json(res, 400, { error: '不认识的操作：' + String(body.action || '') });
     } catch (e) {
       return json(res, 400, { error: e.message });
     }

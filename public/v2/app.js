@@ -2331,7 +2331,7 @@ const state = {
   advSlots: {},
   models: null,
   page: 'create',
-  lib: { q: '', category: '', work: '', catId: '', tag: '', sort: 'name', preview: '', variants: false, offset: 0, total: 0, items: [], loading: false, done: false },
+  lib: { q: '', category: '', work: '', catId: '', tag: '', sort: 'name', preview: '', variants: false, offset: 0, total: 0, items: [], loading: false, done: false, selOn: false, selIds: new Set() },
 };
 
 const isEnName = () => { try { return localStorage.getItem('v2-lang') === 'en'; } catch { return false; } };
@@ -5017,7 +5017,7 @@ async function renderWorkflowManager() {
         const pre = $('#wfJson');
         if (pre) { pre.textContent = JSON.stringify(it.workflow, null, 2); pre.classList.remove('hidden'); }
       } else if (b.dataset.wf === 'rename') {
-        const name = window.prompt('新名字', it.name);
+        const name = await askText('新名字', it.name);
         if (!name) return;
         try {
           await write('/api/workflows/' + it.id, { name }, 'PATCH');
@@ -5083,7 +5083,7 @@ function bindExpertWorkflow() {
         const nodes = Object.values(wf).filter((n) => n && typeof n === 'object' && n.class_type).length;
         if (!nodes) throw new Error('没有节点（要 ComfyUI 的 Save (API) JSON）');
         const defaultName = String(f.name || '工作流').replace(/\.json$/i, '');
-        const name = window.prompt('给这个工作流起个名字', defaultName);
+        const name = await askText('给这个工作流起个名字', defaultName);
         if (!name) return;
         const r = await write('/api/workflows', { name, workflow: wf });
         toast('工作流已保存：' + (r.name || name));
@@ -5689,7 +5689,9 @@ async function loadLibrary(reset = false) {
 
 function cardHTML(it) {
   const img = it.preview ? `<img loading="lazy" src="/media/${it.id}/thumb" alt="" />` : `<span>${esc((it.name || '?').slice(0, 1))}</span>`;
-  return `<article class="lcard" data-id="${it.id}">
+  const sel = state.lib.selOn ? `<span class="lsel ${state.lib.selIds.has(it.id) ? 'on' : ''}"></span>` : '';
+  return `<article class="lcard ${state.lib.selOn ? 'pick' : ''} ${state.lib.selIds.has(it.id) ? 'picked' : ''}" data-id="${it.id}">
+    ${sel}
     <div class="pic">${img}</div>
     <div class="meta">
       <div class="nm">${esc(loraLabel(it) || '未命名')}</div>
@@ -6072,7 +6074,136 @@ function renderFacets() {
   }
 }
 
+/* ---------------- 多选批量 ---------------- */
+
+function syncBulkBar() {
+  const bar = $('#libBulk');
+  if (!bar) return;
+  const on = state.lib.selOn;
+  bar.classList.toggle('hidden', !on);
+  const count = $('#libBulkCount');
+  if (!on) {
+    if (count) count.textContent = '已选 0';
+    return;
+  }
+  if (count) count.textContent = `已选 ${state.lib.selIds.size}`;
+  const sel = $('#libBulkCat');
+  if (sel) {
+    const keep = sel.value;
+    sel.innerHTML = '<option value="">未分类</option>' + catFlat(catTree).map((c) =>
+      `<option value="${c.id}">${'　'.repeat(c.depth)}${esc(c.name)}</option>`).join('');
+    if (keep) sel.value = keep;
+  }
+}
+
+/* ---------------- 导入向导 ---------------- */
+
+function showWizStep(n) {
+  for (const i of [1, 2, 3]) {
+    const el = $('#wizStep' + i);
+    if (el) el.classList.toggle('hidden', i !== n);
+  }
+}
+
+function openWizard() {
+  const m = $('#wizardModal');
+  if (!m) return;
+  m.classList.remove('hidden');
+  showWizStep(1);
+  api('/api/config').then((c) => {
+    const root = c && (c.lorasRoot || (c.lorasRoots && c.lorasRoots[0]));
+    if (root && $('#wizRoot') && !$('#wizRoot').value) $('#wizRoot').value = root;
+  }).catch(() => {});
+}
+
+async function wizardDiscover() {
+  const box = $('#wizFound');
+  if (!box) return;
+  box.textContent = '在找…';
+  try {
+    const d = await api('/api/config/discover');
+    const uniq = [...new Set([d.lorasRoot, ...(d.lorasRoots || [])].filter(Boolean))];
+    if (uniq.length) {
+      $('#wizRoot').value = uniq[0];
+      box.textContent = (d.notes || []).join('；') || `找到 ${uniq.length} 个目录`;
+    } else {
+      box.textContent = '没自动找到，手动填一下路径。';
+    }
+  } catch (e) { box.textContent = '检测失败：' + e.message; }
+}
+
+async function wizardScan() {
+  const box = $('#wizScanState');
+  if (!box) return;
+  box.textContent = '扫描中…';
+  try {
+    const r = await write('/api/scan', { read_meta: false });
+    box.textContent = `扫到 ${r.total ?? '?'} 支（新增 ${r.added ?? 0}，更新 ${r.changed ?? 0}）`;
+    await loadFacets();
+    await loadLibrary(true);
+  } catch (e) { box.textContent = '扫描失败：' + e.message; }
+}
+
+async function wizardFill() {
+  const box = $('#wizFillState');
+  if (!box) return;
+  box.textContent = '补信息中…';
+  try {
+    const r = await write('/api/jobs/fill-meta', { limit: 200 });
+    if (!r.jobId) { box.textContent = '没拿到任务 id'; return; }
+    for (let i = 0; i < 600; i++) {
+      const j = await api('/api/jobs/' + r.jobId);
+      if (j.status === 'running') {
+        box.textContent = `补信息 ${j.done || 0}/${j.total || '?'}`;
+        await new Promise((x) => setTimeout(x, 1500));
+        continue;
+      }
+      box.textContent = j.status === 'done' ? '补完了' : '出错了：' + (j.error || j.status);
+      break;
+    }
+    await loadFacets();
+    await loadLibrary(true);
+  } catch (e) { box.textContent = '补信息失败：' + e.message; }
+}
+
 /* ---------------- 分类管理 ---------------- */
+
+/* 桌面端是 Electron：window.prompt 不被支持（调用直接返回 null，不弹窗），
+   所以改名 / 起名统一走这个站内输入框。 */
+let askResolve = null;
+function askText(title, def = '') {
+  return new Promise((resolve) => {
+    const m = $('#askModal');
+    if (!m) { resolve(null); return; }
+    const t = $('#askTitle');
+    if (t) t.textContent = title || '输入';
+    const inp = $('#askInput');
+    if (inp) inp.value = def == null ? '' : String(def);
+    m.classList.remove('hidden');
+    askResolve = resolve;
+    setTimeout(() => { if (inp) { inp.focus(); inp.select(); } }, 30);
+  });
+}
+
+function closeAsk(accept) {
+  const m = $('#askModal');
+  const inp = $('#askInput');
+  const val = inp ? String(inp.value || '').trim() : '';
+  if (m) m.classList.add('hidden');
+  const r = askResolve;
+  askResolve = null;
+  if (r) r(accept ? val : null);
+}
+
+if ($('#askOk')) $('#askOk').onclick = () => closeAsk(true);
+if ($('#askClose')) $('#askClose').onclick = () => closeAsk(false);
+if ($('#askInput')) {
+  $('#askInput').onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); closeAsk(true); }
+    if (e.key === 'Escape') { e.preventDefault(); closeAsk(false); }
+  };
+}
+if ($('#askModal')) $('#askModal').onclick = (e) => { if (e.target.id === 'askModal') closeAsk(false); };
 
 async function openCatManager() {
   $('#catModal').classList.remove('hidden');
@@ -6112,7 +6243,7 @@ function renderCatManager() {
 async function renameCatFlow(id) {
   const cur = findCat(id);
   if (!cur) return;
-  const name = prompt('改成一个新名字', cur.name);
+  const name = await askText('改成一个新名字', cur.name);
   if (!name || !name.trim() || name.trim() === cur.name) return;
   try {
     await write('/api/categories/' + id, { name: name.trim() }, 'PATCH');
@@ -6125,6 +6256,9 @@ async function renameCatFlow(id) {
 async function deleteCatFlow(id) {
   const cur = findCat(id);
   if (!cur) return;
+  if (cur.builtin) {
+    if (!window.confirm(`「${cur.name}」是内置分类。\n删掉后 ${cur.total} 支会退回未分类，树也少一层，只能在分类管理里点「恢复默认」重建，再逐支挂回去。\n确定删？`)) return;
+  }
   if (!window.confirm(`删掉「${cur.path}」和它的子分类？\n里面的 ${cur.total} 支 LoRA 会回到「未分类」，不会删文件。`)) return;
   try {
     const r = await write('/api/categories/' + id, {}, 'DELETE');
@@ -7209,6 +7343,32 @@ async function boot() {
     if (box) box.classList.toggle('hidden', advSize2.value !== 'custom');
   };
   $('#topCreate').onclick = () => switchPage('create');
+  /* 导入向导 */
+  if ($('#firstRunWizard')) $('#firstRunWizard').onclick = openWizard;
+  if ($('#wizClose')) $('#wizClose').onclick = () => $('#wizardModal').classList.add('hidden');
+  if ($('#wizardModal')) {
+    $('#wizardModal').onclick = (e) => { if (e.target.id === 'wizardModal') $('#wizardModal').classList.add('hidden'); };
+  }
+  if ($('#wizDiscover')) $('#wizDiscover').onclick = wizardDiscover;
+  if ($('#wizNext1')) {
+    $('#wizNext1').onclick = async () => {
+      const root = ($('#wizRoot').value || '').trim();
+      if (!root) { toast('先填 LoRA 目录', true); return; }
+      try { await write('/api/config', { lorasRoot: root }); } catch (e) { toast(e.message, true); return; }
+      showWizStep(2);
+      await wizardScan();
+    };
+  }
+  if ($('#wizScan')) $('#wizScan').onclick = wizardScan;
+  if ($('#wizNext2')) $('#wizNext2').onclick = () => showWizStep(3);
+  if ($('#wizFill')) $('#wizFill').onclick = wizardFill;
+  if ($('#wizDone')) {
+    $('#wizDone').onclick = () => {
+      $('#wizardModal').classList.add('hidden');
+      loadFacets();
+      loadLibrary(true);
+    };
+  }
   $('#libQ').oninput = debounce(() => { state.lib.q = $('#libQ').value.trim(); loadLibrary(true); }, 260);
   $('#libCats').onclick = (e) => {
     const more = e.target.closest('[data-morecat]');
@@ -7335,6 +7495,16 @@ async function boot() {
       } catch (e) { toast(e.message, true); }
     };
   }
+  if ($('#catRestore')) {
+    $('#catRestore').onclick = async () => {
+      try {
+        const r = await write('/api/categories/restore', {});
+        toast(r.added ? `补回 ${r.added} 个默认分类` : '七个默认分类都在');
+        await loadFacets();
+        renderCatManager();
+      } catch (e) { toast(e.message, true); }
+    };
+  }
   $('#scanLib').onclick = async () => {
     const btn = $('#scanLib');
     btn.disabled = true;
@@ -7349,9 +7519,66 @@ async function boot() {
   };
   $('#libGrid').onclick = (e) => {
     const card = e.target.closest('[data-id]');
-    if (card) openDetail(card.dataset.id);
+    if (!card) return;
+    if (state.lib.selOn) {
+      const id = Number(card.dataset.id);
+      if (state.lib.selIds.has(id)) state.lib.selIds.delete(id); else state.lib.selIds.add(id);
+      card.classList.toggle('picked', state.lib.selIds.has(id));
+      const dot = card.querySelector('.lsel');
+      if (dot) dot.classList.toggle('on', state.lib.selIds.has(id));
+      syncBulkBar();
+      return;
+    }
+    openDetail(card.dataset.id);
   };
   $('#libMoreBtn').onclick = () => loadLibrary(false);
+  /* 多选：批量改分类 */
+  if ($('#libSelect')) {
+    $('#libSelect').onclick = () => {
+      state.lib.selOn = !state.lib.selOn;
+      state.lib.selIds.clear();
+      $('#libSelect').classList.toggle('on', state.lib.selOn);
+      $('#libSelect').textContent = state.lib.selOn ? '退出选择' : '选择';
+      loadLibrary(true);
+      syncBulkBar();
+    };
+  }
+  if ($('#libBulkCancel')) {
+    $('#libBulkCancel').onclick = () => {
+      state.lib.selOn = false;
+      state.lib.selIds.clear();
+      $('#libSelect').classList.remove('on');
+      $('#libSelect').textContent = '选择';
+      loadLibrary(true);
+      syncBulkBar();
+    };
+  }
+  if ($('#libBulkAll')) {
+    $('#libBulkAll').onclick = () => {
+      for (const it of state.lib.items) state.lib.selIds.add(it.id);
+      loadLibrary(true);
+      syncBulkBar();
+    };
+  }
+  if ($('#libBulkMove')) {
+    $('#libBulkMove').onclick = async () => {
+      const ids = [...state.lib.selIds];
+      if (!ids.length) { toast('先选几支', true); return; }
+      const raw = $('#libBulkCat').value;
+      try {
+        const r = await write('/api/loras/batch', { action: 'category', ids, category_id: raw ? Number(raw) : null });
+        toast(`改了 ${r.updated} 支的分类`);
+        /* 改完就退出选择：不退出的话已选数还挂着，再点一次会把旧 id 又改一遍 */
+        state.lib.selIds.clear();
+        state.lib.selOn = false;
+        $('#libSelect').classList.remove('on');
+        $('#libSelect').textContent = '选择';
+        await loadFacets();
+        await loadLibrary(true);
+        syncBulkBar();
+      } catch (e) { toast(e.message, true); }
+    };
+  }
   $('#recQ').oninput = debounce(() => searchRecords($('#recQ').value), 260);
   $('#detailClose').onclick = () => $('#detail').classList.add('hidden');
   $('#healthDups').onclick = (e) => {

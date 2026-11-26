@@ -119,7 +119,10 @@ static class Core
             }
         }
         Directory.CreateDirectory(Path.GetDirectoryName(dest));
-        Directory.Move(inner, dest);
+        /* 解压目录在 %TEMP%（通常 C 盘），装到 D 盘时 Directory.Move 会报「跨卷无效」。
+           统一用复制：同卷跨卷都稳，代价是多几秒。 */
+        CopyDir(inner, dest);
+        try { Directory.Delete(inner, true); } catch { }
         string exe = Path.Combine(dest, "LoraLibrary.exe");
         Log("已安装到：" + dest);
 
@@ -142,6 +145,24 @@ static class Core
 
         if (status != null) status("启动洛栈…");
         Process.Start(exe);
+    }
+
+    static void CopyDir(string from, string to)
+    {
+        Directory.CreateDirectory(to);
+        from = from.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        foreach (string dir in Directory.GetDirectories(from, "*", SearchOption.AllDirectories))
+        {
+            string rel = dir.Substring(from.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            Directory.CreateDirectory(Path.Combine(to, rel));
+        }
+        foreach (string file in Directory.GetFiles(from, "*", SearchOption.AllDirectories))
+        {
+            string rel = file.Substring(from.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string target = Path.Combine(to, rel);
+            Directory.CreateDirectory(Path.GetDirectoryName(target));
+            File.Copy(file, target, true);
+        }
     }
 
     static void KillProcesses(string dest)
@@ -411,7 +432,7 @@ static class Program
         {
             string dest = Core.ExplicitDir.Length > 0 ? Path.GetFullPath(Core.ExplicitDir) : Path.Combine(Path.GetTempPath(), "LoraSetupTest");
             try { Core.Install(dest, null); Environment.Exit(0); }
-            catch { Environment.Exit(1); }
+            catch (Exception ex) { Core.Log("自测失败：" + ex.Message); Environment.Exit(1); }
         }
 
         /* 自动更新走这里：setup.exe /S /D=<安装目录>，不弹界面，装完自己重启程序 */
