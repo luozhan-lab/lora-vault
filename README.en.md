@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <img src="public/v2/icon.svg" width="76" alt="Luozhan · LoRA-Vault" />
 </p>
 
@@ -11,7 +11,7 @@
 <p align="center">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%2F%2011-2b6cb0?style=flat-square" />
   <img alt="ComfyUI" src="https://img.shields.io/badge/ComfyUI-local-6b46c1?style=flat-square" />
-  <img alt="version" src="https://img.shields.io/badge/version-1.0.0-2f855a?style=flat-square" />
+  <img alt="version" src="https://img.shields.io/badge/version-1.3.1-2f855a?style=flat-square" />
   <img alt="local-first" src="https://img.shields.io/badge/data-local--only-b7791f?style=flat-square" />
 </p>
 
@@ -28,6 +28,8 @@
 **Luozhan** is a Windows desktop app for managing local LoRA files and generating images through a local ComfyUI instance.
 
 It scans the `.safetensors` files on your disks into a local library, organizing categories, trigger words, feature words, outfit words, previews and sources. When you want an image, pick a character and a scene — ComfyUI does the rest.
+
+**Good fit if**: you have hundreds or thousands of `.safetensors` on disk with names like `char_v3_final_reallyfinal`, and finding the right one means digging through folders; or you can write prompts but don't want to wire up a node graph every time.
 
 - **No cloud account**: the library lives in a local SQLite file, images stay in local folders
 - **No usage data collected**: no telemetry, no reporting

@@ -11,7 +11,7 @@
 <p align="center">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%2F%2011-2b6cb0?style=flat-square" />
   <img alt="ComfyUI" src="https://img.shields.io/badge/ComfyUI-local-6b46c1?style=flat-square" />
-  <img alt="version" src="https://img.shields.io/badge/version-1.0.0-2f855a?style=flat-square" />
+  <img alt="version" src="https://img.shields.io/badge/version-1.3.1-2f855a?style=flat-square" />
   <img alt="local-first" src="https://img.shields.io/badge/data-local--only-b7791f?style=flat-square" />
 </p>
 
@@ -28,6 +28,8 @@
 **洛栈**是一个 Windows 桌面软件，用来管理本地 LoRA，并直接连本机的 ComfyUI 出图。
 
 它把散在磁盘里的 `.safetensors` 扫进一个本地库，整理分类、触发词、特征词、服装词、预览图和来源；想出图时选角色、选画面，剩下交给 ComfyUI。
+
+**适合你，如果**：硬盘里躺着几百上千支 `.safetensors`，名字都是 `xxx_v2_final_真的最终` 这种，想用哪支得翻文件夹猜；或者你会写提示词，但不想每次出图都连线搭一套节点。
 
 - **不依赖云端账号**：库在本机 SQLite，图片在本机目录
 - **不收集使用数据**：没有遥测、没有统计上报
