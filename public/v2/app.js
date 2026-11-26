@@ -1,7 +1,7 @@
 /* LoRA 库 · 新版主流程
    只做三件事：选角色+风格出图、看图库、改设置。
    旧版 2026-11-24 下线，文件备份在 backup/classic-20261124/。 */
-const DEFAULT_NEG = 'lowres, worst quality, bad anatomy, bad hands, extra fingers, fused fingers, missing fingers, deformed limbs, extra limbs, extra person, watermark, text, signature, censored, mosaic censoring, bar censor, blurry, futanari, (girl with penis:1.8)';
+const DEFAULT_NEG = 'lowres, worst quality, blurry, jpeg artifacts, bad anatomy, bad proportions, bad hands, extra fingers, fused fingers, missing fingers, deformed limbs, extra limbs, extra person, watermark, text, signature, censored, mosaic censoring, bar censor, futanari, (girl with penis:1.8)';
 
 const SEMANTIC = {
   scene: [
@@ -51,13 +51,13 @@ const TRIGGER_KIND_ORDER = ['character', 'feature', 'outfit', 'body', 'other'];
 const BODY_TYPES = [
   {
     label: '幼女', adult: false,
-    tag: '(loli:1.2), (small face:1.1), (large eyes:1.1), (round face:1.05), (round cheeks:1.15), (thick thighs:1.1), (childlike face:1.05), flat chest, narrow shoulders, slim waist, narrow hips, small frame',
-    neg: 'large breasts, huge breasts, medium breasts, cleavage, wide hips, mature female, mature face, sharp eyes, narrow eyes, long face, wrinkles, tall, adult proportions, baggy clothes, multiple views, extra eyes, gaunt face, skinny'
+    tag: '(loli:1.2), (small face:1.1), (large eyes:1.1), (round face:1.05), (round cheeks:1.15), (thick thighs:1.1), (childlike face:1.05), flat chest, flat belly, (slim waist:1.2), narrow shoulders, narrow hips, (small frame:1.15)',
+    neg: 'large breasts, huge breasts, medium breasts, cleavage, wide hips, mature female, mature face, sharp eyes, narrow eyes, long face, wrinkles, tall, adult proportions, baggy clothes, multiple heads, extra heads, multiple views, extra eyes, gaunt face, skinny, (chubby:1.4), (plump:1.3), belly, pregnant, fat, crop top, midriff'
   },
   {
     label: '萝莉', adult: false,
-    tag: '(loli:1.2), (small face:1.1), (large eyes:1.1), round cheeks, (childlike face:1.05), flat chest, narrow shoulders, slim waist, narrow hips, (long legs:1.1), small frame',
-    neg: 'large breasts, huge breasts, medium breasts, cleavage, wide hips, mature female, mature face, sharp eyes, narrow eyes, long face, wrinkles, tall, adult proportions, baggy clothes, multiple views, extra eyes'
+    tag: '(short body:1.2), (loli:1.25), (small face:1.15), (large eyes:1.15), round cheeks, (childlike face:1.05), flat chest, narrow shoulders, slim waist, narrow hips, slender legs, small frame',
+    neg: 'large breasts, huge breasts, medium breasts, cleavage, wide hips, mature female, mature face, sharp eyes, narrow eyes, long face, wrinkles, tall, adult proportions, baggy clothes, multiple views, extra eyes, long legs'
   },
   {
     label: '少女', adult: false,
@@ -75,8 +75,14 @@ const BODY_TYPES = [
     neg: 'childlike face, round face, baby face, small breasts, flat chest, huge breasts, gigantic breasts, baggy clothes'
   },
 ];
-/* 幼女和萝莉分开：不写头身数，靠脸部比例和骨架推，负面压多头/重影，避免出多双眼睛 */
-BODY_TYPES[1].neg += ', tall, long legs, adult proportions';
+/* 幼女和萝莉分开：幼女靠 child/petite + 短腿小骨架，萝莉靠 5 头身；负面压多头/重影，避免出多双眼睛 */
+/* 成人模式可用的体型：幼女 / 萝莉 不进成人池。对外分发的口径，跟正常模式分开——
+   正常模式 5 档全给，成人池只剩 少女 / 女青年 / 成女。 */
+const ADULT_OK_BODY_LABELS = new Set(['少女', '女青年', '成女']);
+/* 儿童体型的预设角色：成人模式不出现（按 id 标，别靠名字猜） */
+const PRESET_KID = new Set(['cute-loli']);
+/* 开发版（--dev）：所有限制放开，方便自己调。正式版 / 网页版一律按正式口径走 */
+const isDevBuild = () => !!(window.desktop && window.desktop.isDev);
 
 /* 预设角色：不挂 LoRA，纯词出人，给还没下角色支的人先试手 */
 const PRESET_CHARS = [
@@ -127,7 +133,7 @@ const OUTFIT_LABELS = {
   'yukata': '浴衣', 'apron': '围裙',
   'sundress': '吊带连衣裙', 'hoodie': '连帽衫', 'coat': '大衣', 'school swimsuit': '学校泳装',
   'sports bra': '运动内衣', 'leggings': '瑜伽裤', 'stage costume': '演出服',
-  'uniform': '制服', 'nude': '裸体', 'shorts': '短裤', 'jeans': '牛仔裤',
+  'uniform': '制服', 'nude': '裸身', 'shorts': '短裤', 'jeans': '牛仔裤',
   'off-shoulder sweater': '露肩毛衣', 'backless sweater': '露背毛衣', 'plaid skirt': '格子裙',
   'pleated skirt': '百褶裙', 'turtleneck': '高领毛衣', 'tank top': '背心', 'hanfu': '汉服',
   'gothic lolita': '哥特萝莉', 'miko outfit': '巫女服', 'nurse outfit': '护士服',
@@ -150,13 +156,12 @@ const OUTFIT_LABELS = {
   'sheer leotard': '透明连体衣', 'crotchless bodysuit': '开裆连体衣', 'leotard': '连体紧身衣',
   'shibari': '绳缚', 'armbinder': '束缚手套', 'apron only': '只穿围裙', 'latex dress': '乳胶裙',
   'pvc outfit': 'PVC服', 'belly dancer outfit': '肚皮舞服', 'micro dress': '超短连衣裙',
-  'wet t-shirt': '湿T恤', 'open-crotch pantyhose': '开裆丝袜', 'bunny girl': '兔女郎',
+  'wet t-shirt': '湿T恤', 'open-crotch pantyhose': '开裆丝袜', 'bunny girl': '兔女郎（经典）',
   /* 成套 JK 那种：上衣 + 百褶裙 + 丝袜 + 小皮鞋，一次选好 */
   'jk uniform, pleated skirt, white thighhighs, loafers': 'JK制服套装（百褶裙·白丝袜·小皮鞋）',
   'black school uniform, pleated skirt, black thighhighs, loafers': '黑色JK套装（百褶裙·黑丝袜·小皮鞋）',
   'sailor uniform, pleated skirt, white thighhighs, loafers': '水手服JK套装（百褶裙·白丝袜·小皮鞋）',
   'plaid skirt, cardigan, white thighhighs, loafers': '毛衣格子裙套装（白丝袜·小皮鞋）',
-  'gym uniform, bloomers, white socks, sneakers': '体操服套装（短裤·白袜·运动鞋）',
   'office lady, pencil skirt, black pantyhose, high heels': 'OL套装（包臀裙·黑丝·高跟）',
   /* 高跟成套 */
   'evening gown, black pantyhose, high heels': '晚礼服高跟套装（黑丝·高跟）',
@@ -260,7 +265,6 @@ const EXTRA_OUTFITS = [
   'black school uniform, pleated skirt, black thighhighs, loafers',
   'sailor uniform, pleated skirt, white thighhighs, loafers',
   'plaid skirt, cardigan, white thighhighs, loafers',
-  'gym uniform, bloomers, white socks, sneakers',
   'office lady, pencil skirt, black pantyhose, high heels',
   'evening gown, black pantyhose, high heels',
   'cheongsam, black pantyhose, high heels',
@@ -346,17 +350,19 @@ const OUTFIT_THEME_SETS = [
 ];
 /* 服装只留「一整套」：单件（衬衫 / 牛仔裤 / 短裤…）不再出现在选择器里 */
 const OUTFIT_SET_ALLOW = [
-  'school uniform', 'sailor uniform', 'dress', 'casual clothes', 'pajamas', 'swimsuit', 'bikini',
-  'kimono', 'cheongsam', 'wedding dress', 'maid outfit', 'gym clothes', 'office lady', 'bunny suit',
-  'uniform', 'sundress', 'school swimsuit', 'stage costume', 'gothic lolita', 'miko outfit',
-  'nurse outfit', 'bathrobe', 'evening gown', 'cheerleader outfit', 'kunoichi outfit', 'armor',
-  'pinafore dress', 'track suit', 'tennis outfit', 'baseball uniform', 'jersey', 'gothic dress',
-  'princess dress', 'hanfu', 'yukata', 'lingerie', 'micro bikini', 'crotchless lingerie', 'latex',
-  'bunny girl', 'underwear only', 'lace bodysuit', 'sheer leotard', 'fishnet bodysuit',
-  'crotchless bodysuit', 'latex bodysuit', 'lace babydoll', 'teddy lingerie', 'chemise',
-  'bondage outfit', 'bdsm harness', 'maid lingerie', 'see-through dress', 'micro dress',
-  'string bikini', 'sling bikini', 'side-tie bikini', 'wet clothes', 'leotard', 'latex dress',
+  'maid outfit', 'miko outfit',
+  'cheerleader outfit', 'kunoichi outfit', 'armor',
+  'lingerie', 'micro bikini', 'crotchless lingerie',
+  'bunny girl', 'underwear only',
+  'lace bodysuit', 'sheer leotard', 'fishnet bodysuit',
+  'latex bodysuit',
+  'teddy lingerie', 'chemise',
+  'bdsm harness', 'see-through dress',
+  'micro dress', 'string bikini', 'sling bikini',
+  'side-tie bikini', 'leotard',
   'pvc outfit', 'belly dancer outfit',
+  'apron only', 'bath towel', 'trench coat',
+  'open shirt', 'undressed', 'completely nude',
 ];
 const OUTFIT_SETS = new Set([...OUTFIT_SET_ALLOW, ...OUTFIT_THEME_SETS.map(([t]) => t)]);
 
@@ -365,46 +371,46 @@ const ACTION_LABELS = {
   'hand on cheek': '托腮', 'stretching': '伸懒腰', 'selfie': '自拍', 'eating': '吃东西',
   'reaching out': '伸手', 'hugging each other': '拥抱', 'kissing': '接吻',
   'lying down': '躺着', 'lying on side': '侧躺', 'sleeping': '睡觉', 'walking': '走路',
-  'hand in hair': '撩头发', 'in water': '下水', 'on bed': '躺床上', 'on stomach': '趴着',
+  'hand in hair': '撩头发', 'in water': '下水', 'on bed': '在床上', 'on stomach': '趴着',
   'kneeling': '跪坐', 'spread legs': '张开腿', 'masturbation': '自慰',
   'doggystyle': '后入', 'cowgirl': '骑乘', 'breast grab': '摸胸',
   'missionary': '正常位', 'reverse cowgirl': '反向骑乘', 'standing sex': '站立',
   'desk sex, sitting on desk, facing each other, sex, penetration': '桌上插入·面对面',
   'reverse upright straddle, reverse cowgirl position, straddling, sitting on his lap, facing away, penetration': '反坐插入·凳上',
   'against wall': '抵墙', 'spooning': '侧入', 'mating press': '屈曲位',
-  'prone bone': '趴压', '69': '69', 'fellatio': '口交', 'cunnilingus': '舔阴',
+  'prone bone': '趴压', '69': '69 式', 'fellatio': '口交', 'cunnilingus': '舔阴',
   'paizuri': '乳交', 'handjob': '手交', 'fingering': '指交', 'vibrator': '振动棒',
   'dildo': '假阳具', 'anal': '肛交', 'creampie': '内射', 'facial': '颜射',
   'cum in mouth': '口爆', 'exhibitionism': '露出', 'public nudity': '公开裸露',
-  'flashing': '掀衣', 'undressing': '脱衣', 'on all fours': '趴跪', 'leg lift': '抬腿',
+  'flashing': '掀衣', 'undressing': '脱衣', 'on all fours': '趴跪', 'leg lift': '抬一条腿',
   'bent over': '弯腰', 'squatting': '蹲下', 'footjob': '足交',
   'holding hands': '牵手', 'leaning on shoulder': '靠肩', 'feeding each other': '互相喂',
   'walking together': '并肩走', 'piggyback ride': '背人', 'reading together': '一起看书',
   'selfie together': '一起自拍', 'hugging each other': '拥抱',
   'tribadism': '磨镜', 'scissoring': '剪刀式', 'facesitting': '骑脸',
-  'mutual masturbation': '互相手淫', 'grinding': '蹭腿', 'fingering': '互指',
+  'mutual masturbation': '互相手淫', 'grinding': '蹭腿',
   'strapon': '穿戴假阳具', 'cunnilingus': '舔阴',
-  'watering flowers': '浇花', 'holding phone': '看手机', 'eating popcorn': '吃爆米花',
+  'watering flowers': '浇花', 'holding phone': '拿着手机', 'eating popcorn': '吃爆米花',
   'holding drink': '拿饮料', 'holding books': '抱书', 'playing piano': '弹钢琴',
   'painting': '画画', 'holding brush': '拿画笔', 'looking at sky': '看天',
   'shivering': '发抖', 'holding umbrella': '撑伞', 'praying': '祈祷',
   'lying on sofa': '躺沙发', 'bent over desk': '趴在桌上', 'sitting on floor': '坐地上',
   'crawling': '爬行', 'leaning forward': '前倾', 'leaning on wall': '靠墙',
-  'hugging pillow': '抱枕', 'tying hair': '扎头发', 'holding hand': '牵手',
+  'hugging pillow': '抱枕', 'tying hair': '扎头发', 'holding hand': '拉手',
   'drinking': '喝水', 'playing game': '打游戏', 'dancing': '跳舞', 'singing': '唱歌',
   'waking up': '刚睡醒', 'arms crossed': '抱臂', 'hand on hip': '叉腰',
   'pointing': '指', 'saluting': '敬礼', 'riding bike': '骑车', 'walking dog': '遛狗',
   'paizuri': '乳交', 'handjob': '手交', 'footjob': '足交', 'sixty-nine': '69',
   'prone bone': '趴压', 'missionary': '正常位', 'reverse cowgirl': '反向骑乘',
   'suspended congress': '抱起位', 'lotus': '莲花坐', 'standing sex': '站立位',
-  'against wall': '抵墙', 'spooning': '侧入', 'leg lock': '夹腿', 'lifted legs': '抬腿',
+  'against wall': '抵墙', 'spooning': '侧入', 'leg lock': '夹腿', 'lifted legs': '双腿抬起',
   'bent over': '弯腰', 'on all fours': '趴跪', 'doggystyle': '后入', 'cowgirl': '骑乘',
   'posing': '摆姿势', 'waving': '挥手', 'holding cup': '拿杯子', 'eating snack': '吃零食',
   'cooking': '做饭', 'bathing': '泡澡', 'changing clothes': '换衣服', 'petting cat': '撸猫',
   'writing': '写字', 'playing guitar': '弹吉他', 'adjusting clothes': '整理衣服',
-  'crossing arms': '抱臂', 'peace sign': '比耶', 'thinking pose': '思考状',
+  'crossing arms': '双臂交叉', 'peace sign': '比耶', 'thinking pose': '思考状',
   'holding flower': '拿花', 'touching cheek': '摸脸',
-  'leaning on railing': '靠栏杆', 'sitting on stairs': '坐台阶', 'crouching': '蹲着', 'lying on grass': '躺草地',
+  'leaning on railing': '靠栏杆', 'sitting on stairs': '坐在楼梯上', 'crouching': '蹲着', 'lying on grass': '躺草地',
   'kneeling on one knee': '单膝跪', 'stretching arms': '伸展手臂', 'tying shoes': '系鞋带', 'drinking tea': '喝茶',
   'taking photo': '拍照', 'jumping': '跳', 'running': '跑', 'climbing stairs': '上楼梯', 'leaning out window': '探窗',
   'hugging knees': '抱膝', 'sitting cross-legged': '盘腿坐', 'leaning on table': '靠桌', 'hands behind back': '背手',
@@ -429,8 +435,8 @@ const ACTION_LABELS = {
   'deepthroat': '深喉', 'paizuri cumshot': '乳交射', 'licking glans': '舔龟头', 'licking testicles': '舔蛋',
   'handjob cumshot': '手交射',
   'full nelson': '全尼尔森位', 'piledriver': '打桩机位', 'amazon position': '亚马逊位',
-  'titjob': '乳交（titjob）', 'cum on face': '颜射',
-  'sitting on sand': '坐沙滩上', 'lying on sand': '躺沙滩上', 'against tree': '靠树',
+  'titjob': '乳交（titjob）', 'cum on face': '射脸上',
+  'sitting on sand': '坐沙滩上', 'lying on sand': '躺沙滩上', 'against tree': '靠着树',
   'sitting on log': '坐木头上', 'sitting on tatami': '坐榻榻米', 'lying on futon': '躺被褥',
   'sitting in seat': '坐座位上', 'kneeling in aisle': '跪在过道', 'lying on seat': '躺座位上',
   'bent over crate': '趴在箱子上', 'sitting on crate': '坐箱子上',
@@ -447,7 +453,7 @@ const ACTION_LABELS = {
   'leaning on piano': '靠钢琴', 'holding palette': '拿调色板', 'drawing at easel': '画架前画画',
   'reaching for bookshelf': '伸手拿书', 'sitting on ladder': '坐梯子上', 'leaning on bookshelf': '靠书架',
   'stacking books': '抱一摞书', 'sitting at counter': '坐吧台', 'leaning on counter': '靠吧台',
-  'holding tray': '端盘子', 'sitting at window seat': '坐窗边', 'sitting on bed': '坐床上',
+  'holding tray': '端盘子', 'sitting at window seat': '坐窗边座位', 'sitting on bed': '坐床上',
   'lying on pillow': '躺枕头上', 'sitting on sofa': '坐沙发上', 'sitting on rug': '坐地毯',
   'drinking from cup': '拿杯喝', 'sitting on counter': '坐厨台上', 'sitting in bathtub': '坐浴缸',
   'wrapping towel': '裹毛巾', 'washing hair': '洗头', 'sitting in water': '泡水里',
@@ -458,7 +464,7 @@ const ACTION_LABELS = {
   'sitting by window': '坐窗边', 'standing holding strap': '抓吊环', 'leaning on door': '靠车门',
   'sitting at desk': '坐办公桌', 'holding documents': '拿文件', 'sitting on tatami': '坐榻榻米',
   'kneeling on cushion': '跪坐垫上', 'lying on tatami': '躺榻榻米', 'walking up stairs': '上台阶',
-  'sitting on steps': '坐台阶', 'stretching on floor': '地上拉伸', 'drinking from bottle': '喝水',
+  'sitting on steps': '坐台阶', 'stretching on floor': '地上拉伸', 'drinking from bottle': '喝瓶装水',
   'looking at painting': '看画', 'standing in hall': '站展厅', 'reading at shelf': '站着翻书',
   'sitting in theater': '坐影厅', 'holding popcorn': '拿爆米花', 'leaning on balcony': '靠阳台',
   'sitting on rubble': '坐碎石上',
@@ -472,7 +478,7 @@ const ACTION_LABELS = {
   'pinning wrists': '按住手腕', 'legs wrapped around': '腿缠腰', 'carrying her': '抱起',
   'pushed against window': '抵窗',
   'sitting on table': '坐桌上', 'lying on table': '躺桌上', 'sitting on desk spread legs': '坐桌上张腿',
-  'bent over table': '趴在桌上',
+  'bent over table': '趴在桌边',
   'arms behind head': '手放脑后', 'hands on knees': '双手扶膝', 'lying on back': '仰躺',
   'kneeling on floor': '跪在地上', 'sitting sideways': '侧坐', 'stretching legs': '伸腿',
   'crossing legs': '翘腿', 'hugging own body': '抱着自己', 'covering mouth': '捂嘴',
@@ -492,7 +498,7 @@ const ACTION_LABELS = {
   'nipple slip': '走光', 'one leg up': '单腿抬起', 'kneeling with legs apart': '跪着分腿',
   'hips thrust': '挺胯', 'presenting breasts': '挺胸展示', 'ass focus': '翘臀特写',
   'long legs': '长腿', 'bare legs': '光腿', 'leg focus': '腿部特写', 'thigh focus': '大腿特写',
-  'thigh gap': '大腿缝', 'one leg raised': '抬一条腿', 'standing on one leg': '单脚站立',
+  'thigh gap': '大腿缝', 'one leg raised': '单腿抬起·屈膝', 'standing on one leg': '单脚站立',
   'high kick': '高踢腿', 'splits': '一字马', 'knees up': '屈膝抱腿', 'crossed ankles': '交叉脚踝',
   'bare feet': '赤脚', 'feet up': '翘脚', 'feet on table': '脚搁桌上', 'soles': '脚底', 'toes': '脚趾',
   'foot focus': '脚部特写',
@@ -505,12 +511,12 @@ const ACTION_LABELS = {
   'lying on stomach, feet up': '趴着翘脚',
   'standing, one leg raised': '站着抬腿',
   'sitting on chair, feet on desk': '坐椅子脚搁桌',
-  'kneeling, sitting on heels': '跪坐',
+  'kneeling, sitting on heels': '跪坐·坐在脚跟上',
   'squatting, toes': '蹲着露脚趾',
   'foot on chair': '脚踩椅子',
   'crossed legs, bare feet': '盘腿赤脚',
   'pantyhose feet': '丝袜脚',
-  'legs up': '抬腿',
+  'legs up': '腿抬起',
   /* 地点 + 摆法 */
   'lying on bed, legs spread in M shape, knees up': '躺床上·M字腿',
   'lying on bed, legs up': '躺床上·抬腿',
@@ -554,13 +560,13 @@ const ACTION_LABELS = {
   'sitting on chair, crossed legs, leaning back, hands on armrests, looking down at viewer': '女王坐姿·扶手',
   'sitting on sofa, crossed legs, chin up, hand on knee, condescending': '女王坐姿·沙发',
   /* —— 待着那一组 —— */
-  'sleeping on desk': '趴桌睡', 'head on desk': '趴在桌上', 'resting head on arms': '枕着手臂',
+  'sleeping on desk': '趴桌睡', 'head on desk': '伏在桌上', 'resting head on arms': '枕着手臂',
   'holding pillow': '抱着抱枕', 'curled up on sofa': '窝在沙发',
   'curled up in blanket': '缩在被子里', 'wrapped in blanket': '裹着毯子', 'holding mug': '捧着杯子',
   'holding cup with both hands': '双手捧杯', 'rubbing hands together': '搓手', 'blowing on hands': '哈气暖手',
   'hugging knees on floor': '抱膝坐地上', 'chin on knees': '下巴搁膝盖', 'sitting against wall': '靠墙坐',
   'leaning against wall': '靠墙站着', 'leaning on door frame': '倚着门框',
-  'sitting alone': '一个人坐着', 'staring into distance': '望着远处出神', 'looking at phone': '看手机',
+  'sitting alone': '一个人坐着', 'staring into distance': '望着远处出神', 'looking at phone': '盯着手机',
   'dozing off': '打瞌睡', 'half asleep': '半睡半醒', 'buried in scarf': '埋进围巾',
   'watching rain': '看雨', 'waiting': '等着',
   'sitting on bed edge': '坐床沿', 'legs dangling': '腿垂着', 'barefoot on floor': '光脚踩地',
@@ -582,6 +588,9 @@ const ACTION_LABELS = {
   'kneeling on bed, leaning forward': '跪床上·前倾',
   'sitting on bed, knees up, hugging knees': '坐床上·抱膝',
   'lying on bed, legs crossed at ankles': '床上·交叉脚踝',
+  'lying on bed': '躺床上',
+  'lying on floor': '躺地上',
+  'lying on bed, legs spread': '躺床上·分开腿',
   'sitting on chair, one foot on seat': '椅上·一脚踩椅面',
   'sitting astride chair backwards': '反跨坐椅子',
   'sitting on chair, both legs over armrest': '椅上·双腿搭扶手',
@@ -639,7 +648,7 @@ const EXPRESSION_LABELS = {
   'teary eyes': '泪眼', 'biting lip': '咬唇', 'smirk': '坏笑', 'moaning': '张嘴喘',
   'pouting': '嘟嘴', 'winking': '眨眼', 'thinking': '思考', 'neutral expression': '无表情',
   'gentle smile': '温柔笑', 'nervous': '紧张', 'determined': '坚定', 'relieved': '放松',
-  'embarrassed': '害羞', 'daydreaming': '发呆', 'angry': '生气', 'crying': '哭',
+  'embarrassed': '羞红脸', 'daydreaming': '发呆', 'angry': '生气', 'crying': '哭',
   'lewd expression': '淫荡表情', 'blissful expression': '迷醉', 'parted lips': '微张的嘴',
   'heavy breathing': '喘气', 'looking up at partner': '抬眼看他', 'teary smile': '含着泪笑',
   'flushed face': '脸泛红', 'biting finger': '咬手指', 'half-lidded eyes': '半睁眼',
@@ -658,15 +667,14 @@ const EXPRESSION_LABELS = {
 };
 
 const EXPRESSIONS_SFW = [
-  'smile', 'soft smile', 'blush', 'serious', 'surprised', 'looking away', 'laughing', 'sleepy',
-  'shy', 'confident', 'closed eyes', 'pouting', 'winking', 'thinking', 'neutral expression',
-  'gentle smile', 'nervous', 'determined', 'relieved', 'embarrassed', 'daydreaming', 'angry', 'crying',
-  'smug', 'yawning', 'sighing', 'excited', 'bored', 'curious', 'scared', 'confused',
-  'hopeful', 'soft laugh', 'shy smile', 'glancing up',
-  'grin', 'frown', 'wide-eyed', 'worried', 'amused', 'calm', 'open mouth', 'sticking out tongue',
-  'raised eyebrows', 'soft gaze', 'dreamy', 'gentle gaze',
-  'contempt', 'disgust', 'tsundere', 'annoyed', 'irritated', 'jealous', 'disdainful smile', 'forced smile',
-  'smirk',
+  'smile', 'soft smile', 'blush', 'serious', 'surprised',
+  'looking away', 'laughing', 'sleepy', 'shy', 'confident',
+  'closed eyes', 'pouting', 'winking', 'thinking', 'neutral expression',
+  'nervous', 'determined', 'relieved', 'embarrassed', 'daydreaming',
+  'angry', 'crying', 'smug', 'sighing', 'excited',
+  'bored', 'curious', 'scared', 'confused', 'hopeful',
+  'shy smile', 'glancing up', 'frown', 'open mouth', 'sticking out tongue',
+  'contempt', 'disgust', 'tsundere', 'annoyed', 'smirk',
 ];
 const EXPRESSIONS_R18 = [
   ...EXPRESSIONS_SFW,
@@ -721,6 +729,27 @@ function expressionPoolFor(pose, action) {
 
 /* 表情词光挂一个标签出来常常还是默认脸，补两句脸上看得见的 */
 const EXPRESSION_SUPPORT = {
+  /* —— 最常用的一批：光挂一个词容易被底模拉回默认脸 —— */
+  'smile': 'upturned mouth, soft cheeks, warm eyes',
+  'soft smile': 'gentle curve of lips, soft eyes, relaxed face',
+  'blush': 'pink cheeks, shy eyes, looking slightly away',
+  'serious': 'focused eyes, straight mouth, calm gaze',
+  'looking away': 'averted eyes, side profile, distant gaze',
+  'confident': 'chin up, steady eyes, subtle smirk',
+  'closed eyes': 'peaceful face, visible eyelashes, soft breathing',
+  'winking': 'one eye closed, playful smirk, raised brow',
+  'thinking': 'finger on chin, eyes up, thoughtful gaze',
+  'neutral expression': 'relaxed face, calm eyes, straight mouth',
+  'determined': 'firm eyes, set jaw, focused gaze',
+  'relieved': 'soft exhale, relaxed shoulders, faint smile',
+  'daydreaming': 'distant eyes, unfocused gaze, faint smile',
+  'sighing': 'slightly parted lips, drooping shoulders, closed eyes',
+  'excited': 'sparkling eyes, bright smile, raised brows',
+  'bored': 'half-lidded eyes, slack face, flat gaze',
+  'curious': 'tilted head, bright eyes, raised brow',
+  'hopeful': 'upturned eyes, slight smile, bright gaze',
+  'shy smile': 'blush, averted eyes, small smile',
+  'glancing up': 'eyes looking up, lowered head, soft gaze',
   /* —— 原有：傲 / 冷 / 别扭这一路 —— */
   'contempt': 'looking down at viewer, half-closed eyes, raised eyebrows',
   'disgust': 'furrowed brow, looking away, mouth slightly open',
@@ -801,21 +830,14 @@ const SCENES = [
   { tag: 'festival', label: '祭典', mode: 'sfw', outfits: ['yukata', 'kimono', 'casual clothes'], actions: ['standing', 'walking', 'sitting'] },
   { tag: 'train station', label: '车站', mode: 'sfw', outfits: ['casual clothes', 'school uniform', 'knit sweater'], actions: ['standing', 'walking', 'looking back'] },
   { tag: 'mountain', label: '山里', mode: 'sfw', outfits: ['casual clothes', 'dress', 'sun shirt'], actions: ['standing', 'walking', 'looking back'] },
-  { tag: 'classroom sunset', label: '教室夕阳', mode: 'sfw', outfits: ['school uniform', 'sailor uniform'], actions: ['sitting', 'standing', 'looking back'] },
   { tag: 'hotel room', label: '酒店', mode: 'r18', outfits: ['lingerie', 'camisole', 'open shirt', 'completely nude', 'crotchless lingerie'], actions: ['lying down', 'on bed', 'kneeling', 'spread legs', 'missionary', 'cowgirl'], duoActions: ['missionary','cowgirl','doggystyle','69','fellatio','kissing','hugging each other'] },
   { tag: 'bathroom', label: '浴室', mode: 'r18', outfits: ['bath towel', 'completely nude', 'lingerie', 'wet clothes'], actions: ['standing', 'sitting', 'on bed', 'against wall', 'masturbation'], duoActions: ['against wall','standing sex','fellatio','kissing'] },
   { tag: 'sofa', label: '沙发', mode: 'r18', outfits: ['lingerie', 'camisole', 'undressed', 'completely nude', 'fishnet'], actions: ['sitting', 'lying down', 'kneeling', 'spread legs', 'missionary', 'spooning'], duoActions: ['missionary','cowgirl','spooning','kissing','hugging each other'] },
-  { tag: 'night street', label: '夜街', mode: 'r18', outfits: ['black pantyhose', 'lingerie', 'open shirt', 'undressed', 'trench coat', 'micro bikini'], actions: ['standing', 'walking', 'kneeling', 'looking back', 'exhibitionism', 'public nudity', 'flashing'], duoActions: ['against wall','standing sex','flashing','kissing'] },
   { tag: 'love hotel', label: '情趣酒店', mode: 'r18', outfits: ['lingerie', 'bunny suit', 'completely nude', 'open shirt', 'latex', 'collar'], actions: ['on bed', 'on stomach', 'kneeling', 'spread legs', 'doggystyle', 'cowgirl', '69'], duoActions: ['missionary','cowgirl','reverse cowgirl','suspended congress','69','paizuri','fellatio','kissing'] },
   { tag: 'onsen', label: '温泉', mode: 'r18', outfits: ['bath towel', 'completely nude', 'wet clothes'], actions: ['sitting', 'standing', 'lying down', 'spread legs'], duoActions: ['spooning','lotus','kissing','standing sex'] },
   { tag: 'shower', label: '淋浴', mode: 'r18', outfits: ['completely nude', 'bath towel', 'wet clothes'], actions: ['standing', 'sitting', 'against wall', 'masturbation'], duoActions: ['against wall','standing sex','fellatio','handjob'] },
   { tag: 'dressing room', label: '更衣室', mode: 'r18', outfits: ['lingerie', 'micro bikini', 'undressed', 'open shirt'], actions: ['standing', 'flashing', 'undressing', 'bent over'], duoActions: ['against wall','standing sex','lifted legs','kissing'] },
-  { tag: 'office night', label: '办公室夜景', mode: 'r18', outfits: ['office lady', 'open shirt', 'lingerie', 'black pantyhose'], actions: ['sitting', 'bent over', 'kneeling', 'against wall'], duoActions: ['bent over','standing sex','cowgirl','against wall'] },
-  { tag: 'park night', label: '夜晚公园', mode: 'r18', outfits: ['trench coat', 'open shirt', 'undressed', 'micro bikini'], actions: ['standing', 'exhibitionism', 'public nudity', 'flashing'], duoActions: ['standing sex','against wall','kissing','hugging each other'] },
   { tag: 'public toilet', label: '公共厕所', mode: 'r18', outfits: ['undressed', 'open shirt', 'lingerie'], actions: ['standing', 'kneeling', 'spread legs', 'masturbation'], duoActions: ['against wall','standing sex','fellatio','kissing'] },
-  { tag: 'balcony night', label: '夜晚阳台', mode: 'r18', outfits: ['open shirt', 'lingerie', 'completely nude'], actions: ['standing', 'exhibitionism', 'looking back'], duoActions: ['standing sex','against wall','kissing'] },
-  { tag: 'kitchen night', label: '夜晚厨房', mode: 'r18', outfits: ['apron', 'open shirt', 'completely nude', 'lingerie'], actions: ['standing', 'bent over', 'against wall'], duoActions: ['bent over','standing sex','spooning'] },
-  { tag: 'car night', label: '夜晚车内', mode: 'r18', outfits: ['open shirt', 'lingerie', 'undressed'], actions: ['sitting', 'lying down', 'fellatio', 'cowgirl'], duoActions: ['cowgirl','fellatio','handjob','kissing'] },
   { tag: 'garden', label: '庭院', mode: 'sfw', outfits: ['casual clothes', 'dress', 'sundress', 'kimono', 'white t-shirt'], actions: ['standing', 'walking', 'sitting', 'watering flowers', 'looking back'] },
   { tag: 'riverside', label: '河边', mode: 'sfw', outfits: ['casual clothes', 'sundress', 'white t-shirt', 'school uniform'], actions: ['standing', 'walking', 'sitting', 'looking back'] },
   { tag: 'convenience store', label: '便利店', mode: 'sfw', outfits: ['hoodie', 'casual clothes', 'school uniform', 'white t-shirt'], actions: ['standing', 'looking back', 'holding phone', 'eating'] },
@@ -827,24 +849,16 @@ const SCENES = [
   { tag: 'flower field', label: '花田', mode: 'sfw', outfits: ['sundress', 'dress', 'casual clothes', 'sun shirt'], actions: ['standing', 'walking', 'sitting', 'looking back'] },
   { tag: 'snowy field', label: '雪地', mode: 'sfw', outfits: ['coat', 'knit sweater', 'hoodie', 'casual clothes'], actions: ['standing', 'walking', 'shivering', 'looking back'] },
   { tag: 'rainy street', label: '雨中街道', mode: 'sfw', outfits: ['coat', 'trench coat', 'school uniform', 'casual clothes'], actions: ['standing', 'walking', 'holding umbrella', 'looking back'] },
-  { tag: 'beach sunset', label: '海边黄昏', mode: 'sfw', outfits: ['swimsuit', 'bikini', 'sundress', 'sun shirt'], actions: ['standing', 'walking', 'sitting', 'looking back'] },
   { tag: 'campsite', label: '露营地', mode: 'sfw', outfits: ['hoodie', 'coat', 'casual clothes', 'knit sweater'], actions: ['sitting', 'standing', 'eating', 'looking at sky'] },
   { tag: 'dorm room', label: '宿舍', mode: 'sfw', outfits: ['pajamas', 'camisole', 'shorts', 'casual clothes'], actions: ['sitting', 'lying down', 'reading', 'stretching'] },
   { tag: 'bus interior', label: '巴士', mode: 'sfw', outfits: ['school uniform', 'casual clothes', 'knit sweater'], actions: ['sitting', 'standing', 'looking back', 'sleeping'] },
   { tag: 'school pool', label: '学校泳池', mode: 'sfw', outfits: ['school swimsuit', 'swimsuit'], actions: ['standing', 'in water', 'sitting'] },
-  { tag: 'rooftop night', label: '天台夜景', mode: 'sfw', outfits: ['school uniform', 'coat', 'casual clothes'], actions: ['standing', 'sitting', 'looking at sky', 'looking back'] },
-  { tag: 'shrine night', label: '神社夜晚', mode: 'sfw', outfits: ['kimono', 'yukata', 'school uniform'], actions: ['standing', 'sitting', 'praying', 'looking at sky'] },
   { tag: 'castle', label: '城堡', mode: 'sfw', outfits: ['dress', 'wedding dress', 'kimono', 'gothic lolita'], actions: ['standing', 'sitting', 'looking back'] },
   { tag: 'ruins', label: '废墟', mode: 'sfw', outfits: ['casual clothes', 'coat', 'trench coat'], actions: ['standing', 'walking', 'looking back'] },
   { tag: 'forest', label: '森林', mode: 'sfw', outfits: ['casual clothes', 'dress', 'hoodie', 'coat'], actions: ['standing', 'walking', 'sitting', 'looking at sky'] },
-  { tag: 'living room night', label: '夜晚客厅', mode: 'r18', outfits: ['lingerie', 'camisole', 'open shirt', 'completely nude'], actions: ['lying on sofa', 'sitting', 'kneeling', 'spread legs', 'cowgirl'], duoActions: ['cowgirl','spooning','missionary','kissing'] },
-  { tag: 'gym night', label: '夜晚健身房', mode: 'r18', outfits: ['gym clothes', 'sports bra', 'leggings', 'completely nude'], actions: ['standing', 'stretching', 'against wall', 'bent over', 'squatting'], duoActions: ['against wall','bent over','standing sex','lifted legs'] },
-  { tag: 'pool night', label: '泳池夜晚', mode: 'r18', outfits: ['bikini', 'swimsuit', 'completely nude'], actions: ['in water', 'standing', 'flashing', 'spread legs'], duoActions: ['standing sex','spooning','kissing','hugging each other'] },
-  { tag: 'rainy night street', label: '雨夜街道', mode: 'r18', outfits: ['trench coat', 'open shirt', 'black pantyhose', 'micro bikini'], actions: ['standing', 'walking', 'flashing', 'against wall'], duoActions: ['against wall','standing sex','kissing'] },
   { tag: 'elevator', label: '电梯', mode: 'r18', outfits: ['office lady', 'open shirt', 'lingerie'], actions: ['standing', 'against wall', 'kneeling', 'bent over'], duoActions: ['against wall','standing sex','lifted legs','fellatio'] },
   { tag: 'parking garage', label: '停车场', mode: 'r18', outfits: ['trench coat', 'open shirt', 'undressed', 'leather jacket, black pants, boots, motorcycle', 'office lady, white blouse, pencil skirt, black pantyhose'], actions: ['standing', 'against wall', 'bent over', 'flashing'], duoActions: ['against wall','standing sex','bent over','lifted legs'] },
   { tag: 'tent', label: '帐篷', mode: 'r18', outfits: ['undressed', 'camisole', 'completely nude', 'casual clothes, cardigan, skirt, loafers', 'track suit, sneakers', 'pajamas, white socks, slippers'], actions: ['lying down', 'kneeling', 'cowgirl', 'spooning'], duoActions: ['spooning','cowgirl','missionary','kissing'] },
-  { tag: 'library night', label: '图书馆夜晚', mode: 'r18', outfits: ['lingerie', 'open shirt', 'school uniform', 'black pantyhose'], actions: ['sitting', 'bent over', 'kneeling', 'spread legs'], duoActions: ['bent over','standing sex','lifted legs','fellatio'] },
   { tag: 'public bath', label: '浴场', mode: 'r18', outfits: ['bath towel', 'completely nude', 'wet clothes'], actions: ['standing', 'sitting', 'in water', 'spread legs'], duoActions: ['spooning','standing sex','lotus','kissing'] },
   { tag: 'backstage', label: '演出后台', mode: 'r18', outfits: ['stage costume', 'lingerie', 'open shirt', 'latex'], actions: ['standing', 'sitting', 'kneeling', 'against wall'], duoActions: ['against wall','standing sex','lifted legs','kissing'] },
   { tag: 'private theater', label: '私人影院', mode: 'r18', outfits: ['lingerie', 'camisole', 'completely nude'], actions: ['sitting', 'lying down', 'fellatio', 'cowgirl'], duoActions: ['cowgirl','fellatio','missionary','kissing'] },
@@ -852,22 +866,15 @@ const SCENES = [
   { tag: 'subway', label: '地铁', mode: 'sfw', outfits: ['school uniform', 'office lady', 'casual clothes', 'trench coat'], actions: ['sitting', 'standing', 'looking back', 'holding phone'] },
   { tag: 'winter street', label: '冬季街道', mode: 'sfw', outfits: ['coat', 'turtleneck', 'knit sweater', 'hoodie', 'school uniform, pleated skirt, black knee socks, loafers', 'casual clothes, cardigan, skirt, loafers'], actions: ['walking', 'standing', 'holding cup', 'looking back'] },
   { tag: 'dessert shop', label: '甜品店', mode: 'sfw', outfits: ['sundress', 'dress', 'blouse', 'cardigan'], actions: ['sitting', 'eating', 'holding cup', 'looking back'] },
-  { tag: 'rooftop sunset', label: '天台黄昏', mode: 'sfw', outfits: ['school uniform', 'sailor uniform', 'casual clothes', 'cardigan'], actions: ['standing', 'sitting', 'looking at sky', 'looking back'] },
   { tag: 'japanese garden', label: '和风庭院', mode: 'sfw', outfits: ['kimono', 'yukata', 'hanfu', 'casual clothes'], actions: ['walking', 'sitting', 'praying', 'looking back'] },
   { tag: 'photo studio', label: '摄影棚', mode: 'sfw', outfits: ['blouse', 'dress', 'crop top', 'jeans'], actions: ['standing', 'sitting', 'posing', 'looking back'] },
   { tag: 'bus stop rain', label: '雨天公交站', mode: 'sfw', outfits: ['coat', 'school uniform', 'trench coat', 'hoodie'], actions: ['standing', 'holding umbrella', 'looking back', 'holding phone'] },
-  { tag: 'rain', label: '雨中', mode: 'sfw', outfits: ['coat', 'trench coat', 'school uniform', 'casual clothes'], actions: ['standing', 'walking', 'holding umbrella', 'looking back'] },
   { tag: 'car interior', label: '车内', mode: 'sfw', outfits: ['casual clothes', 'office lady', 'trench coat'], actions: ['sitting', 'looking back', 'holding phone'] },
   { tag: 'hospital duty', label: '医院值班室', mode: 'r18', outfits: ['nurse outfit', 'open shirt', 'lingerie', 'blouse'], actions: ['sitting', 'kneeling', 'against wall', 'bent over'], duoActions: ['against wall','standing sex','cowgirl','fellatio','kissing'] },
   { tag: 'teacher office', label: '教师办公室', mode: 'r18', outfits: ['office lady', 'open shirt', 'lingerie', 'black pantyhose', 'blouse'], actions: ['bent over desk', 'sitting', 'against wall', 'kneeling'], duoActions: ['bent over','standing sex','cowgirl','against wall'] },
-  { tag: 'gym shower', label: '健身房淋浴', mode: 'r18', outfits: ['completely nude', 'wet clothes', 'bath towel'], actions: ['standing', 'against wall', 'spread legs', 'masturbation'], duoActions: ['against wall','standing sex','fellatio','handjob'] },
   { tag: 'tatami room', label: '榻榻米房间', mode: 'r18', outfits: ['yukata', 'completely nude', 'lingerie'], actions: ['lying down', 'kneeling', 'spread legs', 'cowgirl'], duoActions: ['missionary','cowgirl','spooning','kissing'] },
-  { tag: 'private pool', label: '私人泳池', mode: 'r18', outfits: ['micro bikini', 'bikini', 'completely nude'], actions: ['in water', 'standing', 'flashing'], duoActions: ['standing sex','spooning','kissing','hugging each other'] },
-  { tag: 'balcony morning', label: '清晨阳台', mode: 'r18', outfits: ['open shirt', 'lingerie', 'completely nude', 'camisole'], actions: ['standing', 'against wall', 'looking back'], duoActions: ['standing sex','against wall','kissing'] },
   { tag: 'stairwell', label: '楼梯间', mode: 'r18', outfits: ['office lady', 'open shirt', 'undressed', 'black pantyhose'], actions: ['against wall', 'kneeling', 'bent over'], duoActions: ['against wall','standing sex','lifted legs','fellatio'] },
   { tag: 'party', label: '酒会', mode: 'r18', outfits: ['evening gown', 'corset', 'bustier', 'lingerie', 'latex'], actions: ['standing', 'sitting', 'kissing', 'against wall'], duoActions: ['against wall','standing sex','kissing','hugging each other'] },
-  { tag: 'bedroom night', label: '夜晚卧室', mode: 'r18', outfits: ['lingerie', 'pajamas', 'casual clothes'], actions: ['lying down', 'on bed', 'kneeling', 'spread legs', 'cowgirl'], duoActions: ['missionary','cowgirl','doggystyle','spooning','mating press','kissing'] },
-  { tag: 'classroom night', label: '夜晚教室', mode: 'r18', outfits: ['school uniform', 'sailor uniform', 'lingerie'], actions: ['sitting on desk', 'bent over desk', 'against wall', 'kneeling'], duoActions: ['bent over','standing sex','against wall','missionary','cowgirl'] },
   { tag: 'sauna', label: '桑拿房', mode: 'r18', outfits: ['wet clothes', 'bikini', 'lingerie'], actions: ['sitting', 'lying down', 'spread legs', 'kneeling'], duoActions: ['spooning','standing sex','lotus','kissing'] },
   { tag: 'nightclub', label: '夜店', mode: 'r18', outfits: ['micro dress', 'evening gown', 'lingerie', 'latex'], actions: ['standing', 'dancing', 'against wall', 'kneeling'], duoActions: ['against wall','standing sex','kissing','dancing'] },
   { tag: 'bar', label: '酒吧', mode: 'r18', outfits: ['evening gown', 'office lady', 'lingerie', 'latex'], actions: ['sitting', 'standing', 'against wall', 'bent over'], duoActions: ['against wall','standing sex','sitting on lap','kissing'] },
@@ -878,9 +885,6 @@ const SCENES = [
   { tag: 'infirmary', label: '医务室', mode: 'r18', outfits: ['nurse outfit', 'lingerie', 'school uniform'], actions: ['lying down', 'sitting', 'kneeling', 'against wall'], duoActions: ['missionary','cowgirl','against wall','fellatio'] },
   { tag: 'laboratory', label: '实验室', mode: 'r18', outfits: ['latex', 'office lady', 'lingerie'], actions: ['standing', 'sitting', 'bent over', 'against wall'], duoActions: ['bent over','standing sex','against wall','missionary'] },
   { tag: 'church', label: '教堂', mode: 'r18', outfits: ['wedding dress', 'lingerie', 'gothic lolita'], actions: ['kneeling', 'praying', 'standing', 'lying down'], duoActions: ['missionary','cowgirl','standing sex','kissing'] },
-  { tag: 'beach night', label: '夜晚海边', mode: 'r18', outfits: ['micro bikini', 'bikini', 'swimsuit'], actions: ['in water', 'standing', 'lying on sand', 'flashing'], duoActions: ['standing sex','spooning','kissing','hugging each other'] },
-  { tag: 'forest night', label: '夜晚森林', mode: 'r18', outfits: ['casual clothes', 'trench coat', 'lingerie'], actions: ['standing', 'against tree', 'kneeling', 'lying on grass'], duoActions: ['against wall','standing sex','doggystyle','missionary'] },
-  { tag: 'train night', label: '夜晚列车', mode: 'r18', outfits: ['office lady', 'school uniform', 'lingerie'], actions: ['sitting', 'standing holding strap', 'against wall', 'kneeling'], duoActions: ['against wall','standing sex','cowgirl','fellatio'] },
   { tag: 'airplane cabin', label: '机舱', mode: 'r18', outfits: ['office lady', 'lingerie', 'uniform'], actions: ['sitting', 'kneeling', 'lying down', 'against wall'], duoActions: ['sitting on lap','cowgirl','fellatio','handjob'] },
   { tag: 'host club', label: '牛郎店', mode: 'r18', outfits: ['micro dress', 'evening gown', 'lingerie', 'latex'], actions: ['sitting', 'standing', 'kneeling', 'against wall'], duoActions: ['sitting on lap','cowgirl','against wall','kissing'] },
   { tag: 'ryokan', label: '温泉旅馆', mode: 'r18', outfits: ['yukata', 'kimono', 'lingerie'], actions: ['sitting on tatami', 'lying down', 'kneeling', 'spread legs'], duoActions: ['spooning','missionary','cowgirl','lotus'] },
@@ -1004,6 +1008,18 @@ const DUO_ACTIONS_SFW = [
   ['跳舞', 'dancing'], ['靠肩', 'leaning on shoulder'], ['互相喂', 'feeding each other'],
   ['并肩走', 'walking together'], ['背人', 'piggyback ride'], ['一起看书', 'reading together'],
   ['一起自拍', 'selfie together'], ['并肩站', 'standing side by side'], ['面对面', 'face to face'],
+  ['额头相抵', 'forehead touch'],
+  ['摸头', 'head pat'],
+  ['搂腰', 'holding waist'],
+  ['挽手', 'arm in arm'],
+  ['依偎', 'cuddling'],
+  ['一起吃饭', 'eating together'],
+  ['一起看手机', 'looking at phone together'],
+  ['一起躺', 'lying together'],
+  ['牵手走', 'walking hand in hand'],
+  ['耳边说话', 'whispering'],
+  ['靠着睡', 'sleeping on shoulder'],
+  ['一起洗澡', 'bathing together'],
 ];
 const DUO_ACTIONS_MF_R18 = [
   ...DUO_ACTIONS_SFW,
@@ -1014,13 +1030,13 @@ const DUO_ACTIONS_MF_R18 = [
   ['反向骑乘', 'reverse cowgirl'],
   /* 常见但原来没进选项的体位 */
   ['全尼尔森位', 'full nelson'], ['打桩机位', 'piledriver'], ['亚马逊位', 'amazon position'],
-  ['乳交（titjob）', 'titjob'], ['颜射', 'cum on face'],
+  ['乳交（titjob）', 'titjob'],
   /* 坐着插的两个：坐桌上面对面、男坐凳上她反坐 */
   ['桌上插入·面对面', 'desk sex, sitting on desk, facing each other, sex, penetration'],
   ['反坐插入·凳上', 'reverse upright straddle, reverse cowgirl position, straddling, sitting on his lap, facing away, penetration'],
   /* 加 */
   ['坐腿上', 'sitting on lap'], ['跨坐', 'straddling'], ['趴跪抬臀', 'face down ass up'],
-  ['面对面', 'face to face'], ['后入抬腿', 'leg lock'], ['背后抱', 'back hug'],
+  ['后入抬腿', 'leg lock'], ['背后抱', 'back hug'],
   ['站身后', 'standing behind'], ['吻脖子', 'kissing neck'], ['咬脖子', 'biting neck'],
   ['掐腰', 'grabbing waist'], ['按住手腕', 'pinning wrists'], ['腿缠腰', 'legs wrapped around'],
   ['抱起', 'carrying her'], ['抵窗', 'pushed against window'],
@@ -1215,102 +1231,65 @@ const SCENE_EXTRA_DUO_ACTIONS = {
 };
 
 const EXTRA_ACTIONS_SFW = [
-  'kneeling on bed, thighs apart, leaning back', 'lying on bed, on side, legs crossed', 'sitting on bed, legs spread, leaning back on hands', 'lying on floor, legs raised, feet up', 'standing, bent over desk', 'leaning on window, hips out', 'sitting on desk, legs crossed, leaning back', 'sitting on chair, legs over armrest, leaning back', 'kneeling on bed, face down, ass up', 'lying on stomach on bed, legs crossed at ankles', 'sitting on floor, legs in W shape', 'lying on back on bed, knees to chest', 'sitting on bathtub edge, legs crossed', 'sitting on chair, legs spread, leaning back', 'kneeling on sofa, thighs apart',
-  'lying on bed, on side, hugging knees', 'lying on stomach on bed, legs up', 'lying on back on bed, legs raised', 'lying on bed, pillow under hips', 'lying on bed, one leg bent, one straight', 'kneeling on bed, leaning forward', 'sitting on bed, knees up, hugging knees', 'lying on bed, legs crossed at ankles', 'sitting on chair, one foot on seat', 'sitting astride chair backwards', 'sitting on chair, both legs over armrest', 'sitting on chair, leaning forward, elbows on knees', 'kneeling on chair', 'curled up on sofa, knees up', 'kneeling on sofa', 'lying on sofa, legs stretched', 'sitting on sofa sideways', 'lying on stomach on desk', 'sitting on desk edge, legs dangling', 'sitting on floor, back against wall', 'kneeling on floor, leaning forward', 'on stomach on floor, legs up', 'sitting on floor, knees apart', 'standing, one foot on step', 'standing, leaning on railing',
-  'posing', 'holding cup', 'eating snack', 'cooking', 'bathing', 'petting cat', 'writing', 'playing guitar', 'crossing arms', 'thinking pose', 'holding flower', 'touching cheek', 'selfie', 'walking', 'standing', 'sitting',
-  'lying down', 'looking back', 'stretching',
-  /* 加：日常单人动作 */
-  'leaning on railing', 'sitting on stairs', 'crouching', 'lying on grass', 'kneeling on one knee',
-  'stretching arms', 'drinking tea', 'taking photo', 'jumping', 'running',
-  'climbing stairs', 'leaning out window', 'hugging knees', 'sitting cross-legged', 'leaning on table', 'adjusting hair', 'playing violin',
-  'dancing ballet', 'holding bag', 'reading on bed', 'sunbathing', 'skateboarding', 'riding scooter',
-  'holding balloon', /* 加：单人成人动作（ADULT_ACTIONS 里也登记了，正常模式看不到） */ 'presenting', 'legs up', 'face down ass up', 'holding own breasts',
-  'licking lips', 'grinding on him', 'arched back',
-  /* 加：单人事后 / 高潮 */
-  'after sex', 'afterglow', 'lying limp', 'messy hair', 'cum on body', 'cum on stomach',
-  'cum dripping', 'cum overflow', 'panting', 'under blanket', 'sitting up tired',
-  'orgasm', 'squirting', 'body trembling', 'legs trembling', 'toes curling',
-  'gripping bedsheet', 'clutching pillow', 'hand between legs', 'knees weak',
-  /* 通用桌面动作（教室、卧室、办公室都能用） */
-  'sitting on table', 'lying on table', 'sitting on desk spread legs', 'bent over table',
-  /* 再加一批通用日常姿势 */ 'lying on back', 'kneeling on floor', 'sitting sideways',
-  'stretching legs', 'crossing legs', 'looking down', 'looking up',
-  'curled up', 'sitting on windowsill', 'standing on tiptoes', 'walking away', 'running toward viewer',
-  'leaning back', /* 再加一批通用成人姿势 */
-  'masturbating through panties', 'fingering herself', 'rubbing herself', 'holding vibrator',
-  'sucking finger', 'licking finger', 'pulling panties aside', 'hand on crotch', 'spread pussy', 'legs together', 'knees together',
-  /* 展示 / 妖娆类 */
-  'looking over shoulder', 'back to viewer', 'chest out', 'armpit',
-  'sitting with legs spread', 'lying on back with legs spread', 'presenting pussy', 'cameltoe',
-  'panty pull', 'bra lift', 'cupping breasts', 'underboob', 'sideboob', 'cleavage', 'nipple slip',
-  'one leg up', 'kneeling with legs apart', 'hips thrust', 'presenting breasts', 'ass focus',
-  /* 展示腿 / 脚 */
-  'long legs', 'bare legs', 'leg focus', 'thigh focus', 'thigh gap', 'one leg raised', 'standing on one leg',
-  'high kick', 'splits', 'knees up', 'crossed ankles', 'bare feet', 'feet up', 'feet on table',
-  'soles', 'toes', 'foot focus',
-  /* 坐/躺/站的一批姿势；「脚部聚焦」交给景别，这里不再自带镜头词 */
-  'sitting on desk, one leg raised',
-  'sitting on desk, feet up',
-  'sitting on table, crossed legs',
-  'sitting on stool, crossed legs',
-  'sitting on chair, crossed legs',
-  'lying on back, legs up',
-  'lying on stomach, feet up',
-  'standing, one leg raised',
-  'sitting on chair, feet on desk',
-  'kneeling, sitting on heels',
-  'squatting, toes',
-  'foot on chair',
-  'crossed legs, bare feet',
-  'pantyhose feet',
-  'legs up',
-  /* 女王坐姿 */
-  'sitting, crossed legs, sitting on throne, looking down at viewer, arrogant',
-  'sitting on chair, crossed legs, leaning back, hands on armrests, looking down at viewer',
-  'sitting on sofa, crossed legs, chin up, hand on knee, condescending',
-  /* 加：待着的姿势——没在干什么的那一小会儿，插画要的往往是这一格 */
-  'sleeping on desk', 'head on desk', 'resting head on arms', 'hugging pillow', 'holding pillow',
-  'curled up on sofa', 'curled up in blanket', 'wrapped in blanket', 'holding mug', 'holding cup with both hands',
-  'rubbing hands together', 'blowing on hands', 'hugging knees on floor', 'chin on knees',
-  'sitting against wall', 'leaning against wall', 'leaning on door frame', 'sitting on floor',
-  'sitting alone', 'staring into distance', 'looking at phone', 'dozing off', 'half asleep',
-  'buried in scarf', 'sitting by window', 'watching rain', 'waiting', 'sitting on bed edge',
-  'legs dangling', 'barefoot on floor', 'lying face down', 'hugging a plushie',
-  /* 加：成人「半途」——色在那一秒，不在姿势名上 */
-  'mid-penetration', 'just entered', 'half inside', 'tip in', 'barely inside',
-  'pulling out', 'pulling out slowly', 'still inside', 'staying inside', 'thrusting',
-  'hips pressed together', 'about to enter', 'about to cum', 'holding it in',
-  'stopped mid-thrust', 'pressed down', 'pinned wrists', 'hand on throat', 'hair pulled',
-  /* 加：地点 + 摆法（在哪儿、腿怎么放）——配合穿脱和景别出特写 */
-  'lying on bed, legs spread in M shape, knees up',
-  'lying on bed, legs up',
-  'lying on bed, one knee up',
-  'sitting on chair, legs spread',
-  'sitting on chair, one leg over armrest',
-  'sitting on floor, legs spread in M shape',
-  'kneeling on bed, thighs apart',
-  'standing, legs apart',
-  'against wall, one leg raised',
-  'on stomach on bed, ass up, legs apart',
-  'sitting on desk, legs spread in M shape',
-  'lying on sofa, legs spread',
-  'sitting in chair backwards, legs apart',
-  /* 同上的成人版（ADULT_ACTIONS 里也登记） */
-  'lying on bed, legs spread, spreading pussy',
-  'lying on bed, legs raised high',
-  'sitting on chair, legs spread, fingering herself',
-  'sitting on desk, spread legs, masturbation',
-  'on bed, all fours, ass up',
-  'on floor, legs spread in M shape, fingering herself',
+  /* 动作 = 正在干什么（走路 / 看书 / 做饭 / 接吻…）。
+     手怎么放归 HANDS_*，身体怎么摆归 EXTRA_POSES_SFW，阶段归 STAGE_*，别混进来。 */
+  "posing", "walking", "running", "jumping", "climbing stairs",
+  "looking back", "selfie", "taking photo", "stretching", "stretching arms",
+  "leaning out window", "waiting", "watching rain", "staring into distance",
+  "dozing off", "half asleep", "buried in scarf",
+  "cooking", "eating snack", "drinking tea", "bathing", "sunbathing",
+  "petting cat", "writing", "reading", "sleeping", "eating", "praying",
+  "playing guitar", "playing violin", "dancing ballet", "skateboarding", "riding scooter",
+  "holding cup", "holding flower", "holding bag", "holding balloon", "holding umbrella",
+  "hugging pillow", "holding pillow", "hugging a plushie", "wrapped in blanket",
+  "crossing arms", "thinking pose",
+];
 
-  'lying on sofa, legs up', 'lying on sofa, legs spread in M shape', 'sitting on sofa, legs spread', 'sitting on chair, hugging knees', 'lying on desk, legs spread', 'sitting on stairs, legs apart', 'standing, back against wall, legs apart', 'lying on bed, on side, legs bent', 'lying on floor, legs up', 'kneeling on bed, sitting on heels', 'leaning on desk, hips out',
+/* 姿势：在哪儿 + 身体怎么摆。以前混在动作数组里靠 isPoseTag() 猜，现在单独一份 */
+const EXTRA_POSES_SFW = [
+  "standing", "standing, leaning on railing",
+  "leaning against wall", "standing, one leg raised",
+  "standing on tiptoes", "standing, legs apart",
+  "standing, bent over desk", "leaning on window, hips out",
+  "sitting", "sitting cross-legged",
+  "sitting on chair, crossed legs", "sitting with legs spread",
+  "sitting on floor, knees apart", "sitting on bed edge",
+  "sitting on table", "sitting on desk, legs crossed, leaning back",
+  "sitting on sofa sideways", "sitting on stairs",
+  "sitting on chair, leaning forward, elbows on knees", "sitting astride chair backwards",
+  "kneeling", "kneeling on floor",
+  "kneeling on bed, thighs apart", "kneeling on bed, face down, ass up",
+  "kneeling on one knee", "kneeling, sitting on heels",
+  "kneeling on sofa", "kneeling on chair",
+  "lying on stomach on bed, legs up", "lying face down",
+  "on stomach on floor, legs up", "on stomach on bed, ass up, legs apart",
+  "lying on stomach on desk", "face down ass up",
+  "bent over table", "squatting, toes",
+  "lying down", "lying on back",
+  "lying on back, legs up", "lying on bed, legs up",
+  "lying on bed, legs spread in M shape, knees up", "lying on bed, legs spread",
+  "lying on bed, on side, legs crossed", "lying on bed, on side, hugging knees",
+  "lying on sofa, legs stretched", "lying on grass",
+  "lying on back on bed, knees to chest", "curled up",
+  "hugging knees", "chin on knees",
+  "crouching", "head on desk",
+  "under blanket", "legs together",
+  "knees up", "legs spread",
+  "presenting pussy", "presenting breasts",
+  "lying on bed, legs spread, spreading pussy", "lying on sofa, legs spread",
+  "sitting on chair, legs spread", "sitting on sofa, legs spread",
+  "sitting on desk, legs spread in M shape", "lying on sofa, legs spread in M shape",
+  "sitting on floor, legs spread in M shape", "on floor, legs spread in M shape, fingering herself",
+  "sitting on desk, legs spread", "lying on desk, legs spread",
+  "sitting in chair backwards, legs apart", "kneeling with legs apart",
+  "against wall, one leg raised",
 ];
 
 /* 场景 → 可用姿势（场景自己的 + 专属扩展 + 通用） */
 function sceneActionTags(s) {
   const own = s && Array.isArray(s.actions) ? s.actions : [];
   const extra = (s && SCENE_EXTRA_ACTIONS[s.tag]) || [];
-  return [...new Set([...own, ...extra, ...EXTRA_ACTIONS_SFW])];
+  return [...new Set([...own, ...extra, ...EXTRA_ACTIONS_SFW, ...EXTRA_POSES_SFW])];
 }
 
 /* 姿势和场景联动：只收「明确绑在少数场景」的姿势，坐/站/躺这类到处能用的照旧全给 */
@@ -1337,77 +1316,66 @@ function filterActionsForScene(list, sceneTag) {
 }
 
 const PROPS_SFW = [
-  ['书', 'book'], ['杯子', 'cup'], ['伞', 'umbrella'], ['花', 'flowers'], ['手机', 'phone'],
-  ['包', 'bag'], ['耳机', 'headphones'], ['玩偶', 'plush toy'], ['扇子', 'fan'],
-  ['相机', 'camera'], ['气球', 'balloon'], ['冰淇淋', 'ice cream'], ['咖啡', 'coffee'],
-  ['泰迪熊', 'teddy bear'], ['游戏手柄', 'game controller'], ['信', 'letter'],
-  ['野餐篮', 'picnic basket'], ['画本', 'sketchbook'], ['吉他', 'guitar'], ['小提琴', 'violin'],
-  ['香烟', 'cigarette'], ['糖果', 'candy'], ['棒棒糖', 'lollipop'], ['红酒杯', 'wine glass'],
-  ['香槟', 'champagne'], ['蛋糕', 'cake'], ['甜甜圈', 'donut'], ['草莓', 'strawberry'],
-  ['便当', 'bento'], ['饭团', 'onigiri'], ['汽水', 'soda'], ['笔记本电脑', 'laptop'],
-  ['枕头', 'pillow'], ['毯子', 'blanket'], ['梳子', 'hairbrush'], ['口红', 'lipstick'],
-  ['香水', 'perfume'], ['钱包', 'wallet'], ['钥匙', 'keys'], ['猫', 'cat'],
-  ['沙滩球', 'beach ball'], ['泳圈', 'swim ring'], ['防晒霜', 'sunscreen'], ['冲浪板', 'surfboard'],
+  ['书', 'book'], ['杯子', 'cup'], ['伞', 'umbrella'],
+  ['花', 'flowers'], ['手机', 'phone'], ['包', 'bag'],
+  ['耳机', 'headphones'], ['玩偶', 'plush toy'], ['扇子', 'fan'],
+  ['相机', 'camera'], ['气球', 'balloon'], ['冰淇淋', 'ice cream'],
+  ['咖啡', 'coffee'], ['泰迪熊', 'teddy bear'], ['游戏手柄', 'game controller'],
+  ['信', 'letter'], ['野餐篮', 'picnic basket'], ['画本', 'sketchbook'],
+  ['吉他', 'guitar'], ['小提琴', 'violin'], ['香烟', 'cigarette'],
+  ['糖果', 'candy'], ['红酒杯', 'wine glass'], ['蛋糕', 'cake'],
+  ['便当', 'bento'], ['笔记本电脑', 'laptop'], ['枕头', 'pillow'],
+  ['毯子', 'blanket'], ['梳子', 'hairbrush'], ['口红', 'lipstick'],
+  ['香水', 'perfume'], ['钱包', 'wallet'], ['钥匙', 'keys'],
+  ['猫', 'cat'], ['沙滩球', 'beach ball'], ['泳圈', 'swim ring'],
+  ['防晒霜', 'sunscreen'], ['冲浪板', 'surfboard'],
 ];
 const PROPS_R18 = [
   ...PROPS_SFW,
-  ['振动棒', 'vibrator'], ['假阳具', 'dildo'], ['避孕套', 'condom'], ['手铐', 'handcuffs'],
-  ['绳子', 'rope'], ['项圈', 'collar'], ['牵引绳', 'leash'], ['眼罩', 'blindfold'],
-  ['鞭子', 'whip'], ['蜡烛', 'candle'], ['镜子', 'mirror'], ['冰块', 'ice cube'],
+  ['振动棒', 'vibrator'], ['假阳具', 'dildo'], ['避孕套', 'condom'],
+  ['手铐', 'handcuffs'], ['绳子', 'rope'], ['项圈', 'collar'],
+  ['牵引绳', 'leash'], ['眼罩', 'blindfold'], ['鞭子', 'whip'],
+  ['蜡烛', 'candle'], ['镜子', 'mirror'], ['冰块', 'ice cube'],
   ['羽毛', 'feather'], ['口球', 'ball gag'], ['跳蛋', 'vibrating egg'],
   ['乳夹', 'nipple clamps'], ['束带', 'harness'], ['马鞭', 'riding crop'],
   ['肛塞', 'butt plug'], ['肛珠', 'anal beads'], ['锁精环', 'cock ring'],
-  ['润滑液', 'lube'], ['润滑剂', 'lubricant'], ['眼罩丝带', 'blindfold ribbon'],
+  ['润滑液', 'lube'],
 ];
 /* 没有男性在画面里就没有意义的道具，单人模式不出现 */
 const PROPS_NEED_MALE = new Set(['condom', 'cock ring']);
 const HANDS_SFW = [
-  ['双手抱头', 'both hands on head'], ['抓紧床单', 'gripping sheets tightly'], ['手放锁骨', 'hand on collarbone'], ['手扶脖子', 'hand on neck'], ['双手撑桌', 'both hands on desk'], ['手背贴脸', 'back of hand on cheek'], ['双手放小腹', 'hands on stomach'], ['双手交握', 'hands clasped'],
-  ['抓栏杆', 'gripping railing'], ['捂耳朵', 'covering ears'], ['捏自己脸', 'pinching own cheek'], ['撑地', 'hand on floor'], ['拉衣领', 'pulling collar'], ['双手捧脸', 'both hands cupping face'], ['脱袜子', 'taking off socks'], ['脱裤子', 'pulling down pants'],
-  ['摸头发', 'touching hair'], ['捧脸', 'hand on cheek'], ['背后', 'hands behind back'],
-  ['拿杯子', 'holding cup'], ['挥手', 'waving'], ['比耶', 'peace sign'],
-  ['牵手', 'holding hand'], ['扶眼镜', 'adjusting glasses'], ['叉腰', 'hand on hip'],
-  ['手放胸口', 'hand on chest'], ['十指相扣', 'fingers interlaced'],
-  ['抱书', 'holding book'], ['摸自己头发', 'touching own hair'],
-  ['拿手机', 'holding phone'], ['摸脸', 'touching cheek'], ['拿花', 'holding flower'],
-  ['抱枕头', 'hugging pillow'], ['整理衣服', 'adjusting clothes'], ['手插口袋', 'hands in pockets'],
-  ['摸耳朵', 'touching ear'], ['托下巴', 'chin rest'],
-  /* 从姿势里挪过来的手上动作 */
-  ['飞吻', 'blowing kiss'], ['食指抵唇', 'finger to lips'], ['手放脑后', 'arms behind head'],
-  ['双手扶膝', 'hands on knees'], ['抱自己', 'hugging own body'], ['别到耳后', 'tucking hair behind ear'],
-  ['整理丝袜', 'adjusting stockings'], ['涂口红', 'putting on lipstick'], ['整理衣服', 'adjusting clothes'],
-
-  ['双手撑床', 'both hands on bed'], ['抓床沿', 'gripping bed edge'], ['抓桌沿', 'gripping desk edge'], ['抓椅背', 'holding chair back'], ['扶墙', 'hand on wall'], ['双手捂脸', 'hands covering face'],
+  ['双手抱头', 'both hands on head'], ['抓紧床单', 'gripping sheets tightly'], ['手放锁骨', 'hand on collarbone'],
+  ['手扶脖子', 'hand on neck'], ['双手撑桌', 'both hands on desk'], ['手背贴脸', 'back of hand on cheek'],
+  ['双手放小腹', 'hands on stomach'], ['双手交握', 'hands clasped'], ['抓栏杆', 'gripping railing'],
+  ['捂耳朵', 'covering ears'], ['捏自己脸', 'pinching own cheek'], ['撑地', 'hand on floor'],
+  ['拉衣领', 'pulling collar'], ['双手捧脸', 'both hands cupping face'], ['摸头发', 'touching hair'],
+  ['捧脸', 'hand on cheek'], ['背后', 'hands behind back'], ['挥手', 'waving'],
+  ['比耶', 'peace sign'], ['牵手', 'holding hand'], ['扶眼镜', 'adjusting glasses'],
+  ['叉腰', 'hand on hip'], ['手放胸口', 'hand on chest'], ['十指相扣', 'fingers interlaced'],
+  ['摸脸', 'touching cheek'], ['整理衣服', 'adjusting clothes'], ['手插口袋', 'hands in pockets'],
+  ['摸耳朵', 'touching ear'], ['托下巴', 'chin rest'], ['飞吻', 'blowing kiss'],
+  ['食指抵唇', 'finger to lips'], ['手放脑后', 'arms behind head'], ['双手扶膝', 'hands on knees'],
+  ['抱自己', 'hugging own body'], ['别到耳后', 'tucking hair behind ear'], ['双手撑床', 'both hands on bed'],
+  ['抓床沿', 'gripping bed edge'], ['抓桌沿', 'gripping desk edge'], ['抓椅背', 'holding chair back'],
+  ['扶墙', 'hand on wall'], ['双手捂脸', 'hands covering face'],
 ];
 const HANDS_R18 = [
-  ['双手拉内裤', 'both hands pulling panties'], ['一只手指插入一只手指揉外阴', 'one finger inside, one finger rubbing clit'], ['抓自己头发', 'pulling own hair'], ['手指放嘴里', 'finger in mouth'], ['咬手指', 'biting finger'], ['解内衣', 'unclasping bra'],
   ...HANDS_SFW,
-  /* 成人手上动作：只进成人池，正常模式不出 */
-  ['两手掰开腿', 'both hands spreading own legs'], ['两根手指插入', 'two fingers inside'],
-  ['一手扶床沿一手插入', 'one hand on bed edge, one hand fingering'], ['一手托胸一手揉', 'one hand lifting breast, one hand groping'],
-  ['自摸', 'self-touch'], ['揉胸', 'groping breast'], ['撑开', 'spreading'],
-  ['抓床单', 'holding bedsheet'], ['摸对方', 'hand on partner'],
+  ['双手拉内裤', 'both hands pulling panties'], ['一只手指插入一只手指揉外阴', 'one finger inside, one finger rubbing clit'], ['抓自己头发', 'pulling own hair'], ['手指放嘴里', 'finger in mouth'], ['咬手指', 'biting finger'], ['解内衣', 'unclasping bra'],
+  ['两手掰开腿', 'both hands spreading own legs'], ['一手扶床沿一手插入', 'one hand on bed edge, one hand fingering'], ['一手托胸一手揉', 'one hand lifting breast, one hand groping'],
+  ['自摸', 'self-touch'], ['揉胸', 'groping breast'], ['摸对方', 'hand on partner'],
   ['搂腰', 'hands on waist'], ['抓手腕', 'holding wrists'], ['按手腕', 'pinning wrists'],
   ['抬下巴', 'lifting chin'], ['摸大腿', 'hand on thigh'], ['掰开腿', 'spreading legs'],
-  ['抓头发', 'pulling hair'],
-  ['捂嘴', 'covering mouth'], ['扶腰', 'holding hips'], ['摸臀', 'groping ass'],
-  ['拉衣服', 'pulling clothes'], ['按头', 'pushing head down'], ['摸胸口', 'hand on chest'],
-  /* 加：手上在干什么（单动作） */
+  ['抓头发', 'pulling hair'], ['捂嘴', 'covering mouth'], ['扶腰', 'holding hips'],
+  ['摸臀', 'groping ass'], ['拉衣服', 'pulling clothes'], ['按头', 'pushing head down'],
   ['掰开小穴', 'spreading pussy'], ['插入小穴', 'fingering herself'], ['捏乳头', 'pinching nipple'],
-  ['揉阴蒂', 'rubbing clit'], ['揉小腹', 'hand on lower abdomen'], ['双手叉腰', 'hands on hips'],
-  ['托胸', 'lifting breasts'], ['解开扣子', 'unbuttoning'], ['拉下内裤', 'pulling down panties'],
-  /* 加：两只手各干各的 */
-  ['一手揉胸一手插入', 'one hand groping breast, one hand fingering'],
-  ['一手揉胸一手掰开', 'one hand groping breast, one hand spreading pussy'],
-  ['一手捂嘴一手揉胸', 'covering mouth, one hand groping breast'],
-  ['双手揉胸', 'both hands groping breasts'],
-  ['双手掰开', 'both hands spreading pussy'],
-  ['一手捏乳头一手插入', 'one hand pinching nipple, one hand fingering'],
-  /* 脱衣 / 掀衣也从姿势挪到手上（配合穿脱用） */
-  ['脱衣', 'undressing'], ['换衣服', 'changing clothes'], ['掀起裙子', 'lifting skirt'],
-  ['掀起上衣', 'lifting shirt'], ['自己脱衣', 'undressing herself'],
-
-  ['一手摸脸一手揉胸', 'hand on cheek, one hand groping breast'], ['一手撩头发一手自慰', 'hand in hair, one hand fingering herself'], ['一手按小腹', 'hand pressing on lower abdomen'], ['一手掐脖子', 'hand on own throat'], ['一手捻乳头一手揉阴蒂', 'one hand pinching nipple, one hand rubbing clit'], ['一只手掰开一边', 'one hand spreading one side'], ['一手拉内裤一手插入', 'one hand pulling panties aside, one hand fingering'], ['两手都插入', 'both hands fingering'], ['一只手揉小穴', 'hand rubbing pussy'],
+  ['揉阴蒂', 'rubbing clit'], ['双手叉腰', 'hands on hips'], ['托胸', 'lifting breasts'],
+  ['解开扣子', 'unbuttoning'], ['拉下内裤', 'pulling down panties'], ['一手揉胸一手插入', 'one hand groping breast, one hand fingering'],
+  ['一手揉胸一手掰开', 'one hand groping breast, one hand spreading pussy'], ['双手揉胸', 'both hands groping breasts'], ['双手掰开', 'both hands spreading pussy'],
+  ['一手捏乳头一手插入', 'one hand pinching nipple, one hand fingering'], ['脱衣', 'undressing'], ['换衣服', 'changing clothes'],
+  ['掀起裙子', 'lifting skirt'], ['掀起上衣', 'lifting shirt'], ['一手按小腹', 'hand pressing on lower abdomen'],
+  ['一手拉内裤一手插入', 'one hand pulling panties aside, one hand fingering'], ['两手都插入', 'both hands fingering'], ['一只手揉小穴', 'hand rubbing pussy'],
+  ['手按私处', 'hand on crotch'], ['拨到一边', 'pulling panties aside'],
 ];
 /* 这些动作是「对对方」做的，单人模式不给 */
 const HANDS_PARTNER = new Set([
@@ -1879,73 +1847,42 @@ function closeUndressModal() {
   $('#undressModal').classList.add('hidden');
 }
 const TATTOO_POSITIONS = [
-  ['无', ''],
-  ['下腹·淫纹', 'pubic tattoo, womb tattoo'],
-  ['下腹·心形', 'pubic tattoo, heart-shaped tattoo'],
-  ['后腰', 'tramp stamp'],
-  ['大腿', 'thigh tattoo'],
-  ['手臂', 'arm tattoo'],
-  ['后背', 'back tattoo'],
-  ['胸前', 'chest tattoo'],
-  ['胸下', 'underboob tattoo'],
-  ['胯', 'hip tattoo'],
-  ['脖子', 'neck tattoo'],
-  ['脸', 'face tattoo'],
-
-  ['肩', 'shoulder tattoo'], ['手腕', 'wrist tattoo'], ['脚踝', 'ankle tattoo'], ['腹部', 'stomach tattoo'], ['锁骨', 'collarbone tattoo'], ['后颈', 'nape tattoo'], ['臀', 'ass tattoo'], ['舌', 'tongue tattoo'],
-  ['私处', 'crotch tattoo'], ['尾骨', 'tramp stamp, tattoo'], ['大腿环', 'thigh tattoo, band tattoo'],];
+  ['无', ''], ['下腹·淫纹', 'pubic tattoo, womb tattoo'], ['后腰', 'tramp stamp'], ['大腿', 'thigh tattoo'],
+  ['手臂', 'arm tattoo'], ['后背', 'back tattoo'], ['胸前', 'chest tattoo'], ['胸下', 'underboob tattoo'],
+  ['脖子', 'neck tattoo'], ['肩', 'shoulder tattoo'], ['锁骨', 'collarbone tattoo'], ['舌', 'tongue tattoo'],
+  ['私处', 'crotch tattoo'],
+];
 /* 性器官附近的位置正常模式不显示；舌 / 后腰 / 胸下这类不算 */
 const ADULT_TATTOO_TAGS = new Set(TATTOO_POSITIONS
   .filter(([, t]) => /pubic tattoo|crotch tattoo|womb tattoo|ass tattoo|hip tattoo|thigh tattoo, band tattoo/i.test(t))
   .map(([, t]) => t));
 const TATTOO_PATTERNS = [
-  ['无', ''],
-  ['心形', 'heart-shaped tattoo'],
-  ['玫瑰', 'rose tattoo'],
-  ['蝴蝶', 'butterfly tattoo'],
-  ['星星', 'star tattoo'],
-  ['蛇', 'snake tattoo'],
-  ['符文', 'rune tattoo'],
-  ['魔法阵', 'magic circle tattoo'],
-  ['藤蔓', 'vine tattoo'],
-
-  ['樱花', 'cherry blossom tattoo'], ['龙', 'dragon tattoo'], ['猫爪', 'cat paw tattoo'], ['翅膀', 'wing tattoo'], ['十字', 'cross tattoo'], ['月亮', 'moon tattoo'], ['荆棘', 'thorn tattoo'], ['眼', 'eye tattoo'],
-  ['条形码', 'barcode tattoo'], ['正字计数', 'tally marks'], ['向下箭头', 'arrow tattoo, pointing down'], ['恶魔纹章', 'demon crest tattoo'], ['女性符号', 'female symbol tattoo'], ['文字', 'text tattoo, lettering'], ['爪痕', 'claw mark tattoo'], ['鳞纹', 'scale tattoo'],];
+  ['无', ''], ['心形', 'heart-shaped tattoo'], ['玫瑰', 'rose tattoo'], ['蝴蝶', 'butterfly tattoo'],
+  ['星星', 'star tattoo'], ['蛇', 'snake tattoo'], ['符文', 'rune tattoo'], ['魔法阵', 'magic circle tattoo'],
+  ['藤蔓', 'vine tattoo'], ['樱花', 'cherry blossom tattoo'], ['龙', 'dragon tattoo'], ['翅膀', 'wing tattoo'],
+  ['十字', 'cross tattoo'], ['月亮', 'moon tattoo'], ['条形码', 'barcode tattoo'], ['正字计数', 'tally marks'],
+  ['文字', 'text tattoo, lettering'],
+];
 const SHOTS = [
-  ['全身', 'full body'], ['中景', 'medium shot'], ['七分身', 'cowboy shot'],
-  ['上半身', 'upper body'], ['特写', 'close-up'], ['面部特写', 'face focus'],
-  ['远景', 'wide shot'], ['背影', 'from behind'],
-  ['大远景', 'extreme wide shot'], ['膝上', 'thigh focus'], ['局部特写', 'detail shot'],
-  ['半身特写', 'upper body close-up'], ['俯拍全身', 'full body from above'],
-  ['足部特写', 'foot focus, feet close-up'], ['脚底特写', 'soles, soles toward viewer'],
-  ['腿部特写', 'leg focus, thighs close-up'], ['下半身特写', 'lower body, thighs and feet'],
-  ['腋部特写', 'armpit focus, armpit close-up'],
-  ['胸部特写', 'breast focus, breasts close-up, chest focus'],
-  ['小穴特写', 'pussy focus, pussy close-up, crotch focus'],
+  ['全身', 'full body'], ['中景', 'medium shot'], ['七分身', 'cowboy shot'], ['上半身', 'upper body'],
+  ['面部特写', 'face focus'], ['远景', 'wide shot'], ['大远景', 'extreme wide shot'], ['半身特写', 'upper body close-up'],
+  ['足部特写', 'foot focus, feet close-up'], ['脚底特写', 'soles, soles toward viewer'], ['腿部特写', 'leg focus, thighs close-up'], ['下半身特写', 'lower body, thighs and feet'],
+  ['腋部特写', 'armpit focus, armpit close-up'], ['胸部特写', 'breast focus, breasts close-up, chest focus'], ['小穴特写', 'pussy focus, pussy close-up, crotch focus'],
 ];
 const ADULT_SHOTS = new Set(['pussy focus, pussy close-up, crotch focus']);
 const ANGLES = [
-  ['正面', 'straight-on'], ['俯视', 'from above'], ['仰视', 'from below'],
-  ['侧面', 'from side'], ['背面', 'from behind'], ['俯拍', 'high angle'],
-  ['低角度', 'low angle'], ['过肩', 'over shoulder'], ['第一人称', 'pov'],
-  ['鸟瞰', "bird's eye view"], ['荷兰角', 'dutch angle'], ['四分之三侧', 'three-quarter view'],
-  ['后视', 'rear view'],
+  ['正面', 'straight-on'], ['俯视', 'from above'], ['仰视', 'from below'], ['侧面', 'from side'],
+  ['过肩', 'over shoulder'], ['第一人称', 'pov'], ['荷兰角', 'dutch angle'], ['后视', 'rear view'],
 ];
 const LIGHTS = [
-  ['自然光', 'sunlight'], ['暖光', 'warm light'], ['霓虹', 'neon light'], ['夜晚', 'night'],
-  ['逆光', 'rim light'], ['烛光', 'candlelight'], ['月光', 'moonlight'],
-  ['室内灯', 'indoor lighting'], ['屏幕光', 'screen light'], ['舞台光', 'stage lighting'],
-  ['阴天', 'overcast'],
-  ['台灯', 'desk lamp light'], ['霓虹粉', 'pink neon'], ['冷光', 'cold light'],
-  ['黄昏光', 'golden hour light'], ['窗光', 'window light'], ['车灯', 'car headlights'],
-  ['荧光灯', 'fluorescent light'],
+  ['自然光', 'sunlight'], ['暖光', 'warm light'], ['霓虹', 'neon light'], ['逆光', 'rim light'],
+  ['烛光', 'candlelight'], ['月光', 'moonlight'], ['屏幕光', 'screen light'], ['舞台光', 'stage lighting'],
+  ['台灯', 'desk lamp light'], ['冷光', 'cold light'], ['窗光', 'window light'], ['车灯', 'car headlights'],
 ];
 const TIMES = [
   ['白天', 'day'], ['黄昏', 'dusk'], ['夜晚', 'night'], ['清晨', 'morning'],
-  ['深夜', 'late night'], ['雨天', 'rainy'], ['雪天', 'snowy'],
-  ['正午', 'noon'], ['下午', 'afternoon'], ['凌晨', 'early morning'], ['傍晚', 'evening'],
+  ['深夜', 'late night'], ['下午', 'afternoon'],
 ];
-
 function pairLabel(list, tag) {
   if (isEnName()) return tag || '';
   const hit = list.find((x) => x[1] === tag);
@@ -1954,25 +1891,25 @@ function pairLabel(list, tag) {
 
 const QUICK_STYLES = {
   sfw: [
-    { label: '日常', scene: 'classroom', outfit: 'school uniform', action: 'sitting', expression: 'soft smile' },
-    { label: '夜景', scene: 'rooftop night', outfit: 'casual clothes', action: 'looking at sky', expression: 'relieved' },
-    { label: '泳装', scene: 'swimming pool', outfit: 'swimsuit', action: 'standing', expression: 'smile' },
-    { label: '双人', scene: 'living room', outfit: 'pajamas', action: 'hugging each other', expression: 'smile', people: 'duo' },
-    { label: '外出', scene: 'street', outfit: 'casual clothes', action: 'walking', expression: 'smile' },
-    { label: '咖啡', scene: 'cafe', outfit: 'knit sweater', action: 'sitting', expression: 'soft smile' },
-    { label: '图书馆', scene: 'library', outfit: 'school uniform', action: 'reading', expression: 'serious' },
-    { label: '海边', scene: 'beach', outfit: 'swimsuit', action: 'standing', expression: 'smile' },
-    { label: '雨天', scene: 'rainy street', outfit: 'trench coat', action: 'holding umbrella', expression: 'gentle smile' },
-    { label: '雪景', scene: 'snowy field', outfit: 'coat', action: 'standing', expression: 'blush' },
-    { label: '祭典', scene: 'festival', outfit: 'yukata', action: 'walking', expression: 'smile' },
-    { label: '音乐', scene: 'music room', outfit: 'school uniform', action: 'playing piano', expression: 'soft smile' },
-    { label: '野餐', scene: 'garden', outfit: 'sundress', action: 'sitting', expression: 'smile' },
-    { label: '花田', scene: 'flower field', outfit: 'sundress', action: 'looking back', expression: 'gentle smile' },
-    { label: '冬街', scene: 'winter street', outfit: 'coat', action: 'walking', expression: 'blush' },
-    { label: '甜品店', scene: 'dessert shop', outfit: 'sundress', action: 'eating', expression: 'smile' },
-    { label: '地铁', scene: 'subway', outfit: 'office lady', action: 'standing', expression: 'neutral expression' },
-    { label: '和风庭院', scene: 'japanese garden', outfit: 'kimono', action: 'walking', expression: 'soft smile' },
-    { label: '摄影棚', scene: 'photo studio', outfit: 'blouse', action: 'posing', expression: 'confident' },
+    { label: '日常', scene: 'classroom', outfit: 'school uniform, pleated skirt, black knee socks, loafers', action: 'sitting', expression: 'soft smile' },
+    { label: '夜景', scene: 'rooftop', time: 'night', outfit: 'casual clothes, cardigan, skirt, loafers', action: 'looking at sky', expression: 'relieved' },
+    { label: '泳装', scene: 'swimming pool', outfit: 'one-piece swimsuit, sandals', action: 'standing', expression: 'smile' },
+    { label: '双人', scene: 'living room', outfit: 'pajamas, white socks, slippers', action: 'hugging each other', expression: 'smile', people: 'duo' },
+    { label: '外出', scene: 'street', outfit: 'casual clothes, cardigan, skirt, loafers', action: 'walking', expression: 'smile' },
+    { label: '咖啡', scene: 'cafe', outfit: 'casual clothes, cardigan, skirt, loafers', action: 'sitting', expression: 'soft smile' },
+    { label: '图书馆', scene: 'library', outfit: 'school uniform, pleated skirt, black knee socks, loafers', action: 'reading', expression: 'serious' },
+    { label: '海边', scene: 'beach', outfit: 'one-piece swimsuit, sandals', action: 'standing', expression: 'smile' },
+    { label: '雨天', scene: 'rainy street', outfit: 'trench coat', action: 'holding umbrella', expression: 'soft smile' },
+    { label: '雪景', scene: 'snowy field', outfit: 'winter coat, turtleneck, plaid skirt, black tights, boots', action: 'standing', expression: 'blush' },
+    { label: '祭典', scene: 'festival', outfit: 'yukata, obi, sandals, hair ornament', action: 'walking', expression: 'smile' },
+    { label: '音乐', scene: 'music room', outfit: 'school uniform, pleated skirt, black knee socks, loafers', action: 'playing piano', expression: 'soft smile' },
+    { label: '野餐', scene: 'garden', outfit: 'casual clothes, cardigan, skirt, loafers', action: 'sitting', expression: 'smile' },
+    { label: '花田', scene: 'flower field', outfit: 'casual clothes, cardigan, skirt, loafers', action: 'looking back', expression: 'soft smile' },
+    { label: '冬街', scene: 'winter street', outfit: 'winter coat, turtleneck, plaid skirt, black tights, boots', action: 'walking', expression: 'blush' },
+    { label: '甜品店', scene: 'dessert shop', outfit: 'casual clothes, cardigan, skirt, loafers', action: 'eating', expression: 'smile' },
+    { label: '地铁', scene: 'subway', outfit: 'office lady, white blouse, pencil skirt, black pantyhose', action: 'standing', expression: 'neutral expression' },
+    { label: '和风庭院', scene: 'japanese garden', outfit: 'kimono, obi, tabi, sandals', action: 'walking', expression: 'soft smile' },
+    { label: '摄影棚', scene: 'photo studio', outfit: 'office lady, white blouse, pencil skirt, black pantyhose', action: 'posing', expression: 'confident' },
     { label: '雨天等车', scene: 'bus stop rain', outfit: 'trench coat', action: 'holding umbrella', expression: 'looking away' },
   ],
   r18: [
@@ -1981,26 +1918,26 @@ const QUICK_STYLES = {
     { label: '骑乘', scene: 'bedroom', outfit: 'lingerie', action: 'cowgirl', expression: 'seductive expression', people: 'duo' },
     { label: '口交', scene: 'hotel room', outfit: 'undressed', action: 'fellatio', expression: 'seductive expression', people: 'duo' },
     { label: '自慰', scene: 'bedroom', outfit: 'completely nude', action: 'masturbation', expression: 'half-closed eyes' },
-    { label: '露出', scene: 'night street', outfit: 'open shirt', action: 'exhibitionism', expression: 'shy' },
+    { label: '露出', scene: 'street', time: 'night', outfit: 'open shirt', action: 'exhibitionism', expression: 'shy' },
     { label: '淋浴', scene: 'shower', outfit: 'completely nude', action: 'standing', expression: 'seductive expression' },
     { label: '情趣', scene: 'love hotel', outfit: 'bunny suit', action: 'kneeling', expression: 'seductive expression' },
     { label: '双人成人', scene: 'bedroom', outfit: 'lingerie', action: 'hugging each other', expression: 'seductive expression', people: 'duo' },
     { label: '浴室', scene: 'shower', outfit: 'wet clothes', action: 'standing', expression: 'lewd expression' },
     { label: '情趣酒店', scene: 'love hotel', outfit: 'latex', action: 'bent over', expression: 'lewd expression', people: 'duo' },
-    { label: '夜街露出', scene: 'night street', outfit: 'trench coat', action: 'flashing', expression: 'shy' },
-    { label: '办公室夜', scene: 'office night', outfit: 'office lady', action: 'bent over', expression: 'lewd expression', people: 'duo' },
+    { label: '夜街露出', scene: 'street', time: 'night', outfit: 'trench coat', action: 'flashing', expression: 'shy' },
+    { label: '办公室夜', scene: 'office', time: 'night', outfit: 'office lady, white blouse, pencil skirt, black pantyhose', action: 'bent over', expression: 'lewd expression', people: 'duo' },
     { label: '浴场', scene: 'public bath', outfit: 'bath towel', action: 'in water', expression: 'seductive expression' },
-    { label: '电梯', scene: 'elevator', outfit: 'office lady', action: 'against wall', expression: 'nervous', people: 'duo' },
-    { label: '雨夜', scene: 'rainy night street', outfit: 'black pantyhose', action: 'against wall', expression: 'seductive expression', people: 'duo' },
-    { label: '影院', scene: 'private theater', outfit: 'camisole', action: 'fellatio', expression: 'seductive expression', people: 'duo' },
-    { label: '帐篷', scene: 'tent', outfit: 'camisole', action: 'cowgirl', expression: 'blissful expression', people: 'duo' },
-    { label: '后台', scene: 'backstage', outfit: 'stage costume', action: 'kneeling', expression: 'seductive expression', people: 'duo' },
+    { label: '电梯', scene: 'elevator', outfit: 'office lady, white blouse, pencil skirt, black pantyhose', action: 'against wall', expression: 'nervous', people: 'duo' },
+    { label: '雨夜', scene: 'rainy street', time: 'night', outfit: 'office lady, white blouse, pencil skirt, black pantyhose', action: 'against wall', expression: 'seductive expression', people: 'duo' },
+    { label: '影院', scene: 'private theater', outfit: 'casual clothes, cardigan, skirt, loafers', action: 'fellatio', expression: 'seductive expression', people: 'duo' },
+    { label: '帐篷', scene: 'tent', outfit: 'casual clothes, cardigan, skirt, loafers', action: 'cowgirl', expression: 'blissful expression', people: 'duo' },
+    { label: '后台', scene: 'backstage', outfit: 'idol costume, frilled skirt, white thighhighs, boots', action: 'kneeling', expression: 'seductive expression', people: 'duo' },
     { label: '值班室', scene: 'hospital duty', outfit: 'nurse outfit', action: 'against wall', expression: 'nervous', people: 'duo' },
-    { label: '教师办公室', scene: 'teacher office', outfit: 'office lady', action: 'bent over', expression: 'lewd expression', people: 'duo' },
-    { label: '榻榻米', scene: 'tatami room', outfit: 'yukata', action: 'cowgirl', expression: 'blissful expression', people: 'duo' },
-    { label: '楼梯间', scene: 'stairwell', outfit: 'office lady', action: 'against wall', expression: 'seductive expression', people: 'duo' },
+    { label: '教师办公室', scene: 'teacher office', outfit: 'office lady, white blouse, pencil skirt, black pantyhose', action: 'bent over', expression: 'lewd expression', people: 'duo' },
+    { label: '榻榻米', scene: 'tatami room', outfit: 'yukata, obi, sandals, hair ornament', action: 'cowgirl', expression: 'blissful expression', people: 'duo' },
+    { label: '楼梯间', scene: 'stairwell', outfit: 'office lady, white blouse, pencil skirt, black pantyhose', action: 'against wall', expression: 'seductive expression', people: 'duo' },
     { label: '酒会', scene: 'party', outfit: 'evening gown', action: 'standing sex', expression: 'lewd expression', people: 'duo' },
-    { label: '私人泳池', scene: 'private pool', outfit: 'micro bikini', action: 'standing sex', expression: 'seductive expression', people: 'duo' },
+    { label: '私人泳池', scene: 'swimming pool', outfit: 'micro bikini', action: 'standing sex', expression: 'seductive expression', people: 'duo' },
   ],
 };
 
@@ -2040,6 +1977,56 @@ function charLooksChildlike() {
   return /\b(loli|child|toddler|teen|small body|flat chest)\b/.test(text);
 }
 
+/* 词路用的权重包装：单段词才套括号；多段（带逗号）或已带括号/冒号的整串不动，
+   避免把一整串衣服当一个 token 加权，也避免 ((x:1.3):1.05) 这种叠出来的怪东西。 */
+function w(tag, n) {
+  const t = String(tag == null ? '' : tag).trim();
+  if (!t || n == null) return t;
+  if (Math.abs(Number(n) - 1) < 1e-6) return t;
+  if (/[,()]/.test(t) || t.includes(':')) return t;
+  return `(${t}:${Number(n)})`;
+}
+
+const LAYER_LABEL = { quality: '画质', identity: '身份', body: '身体', wear: '衣着', cam: '构图', pose: '姿态', interact: '互动', face: '面孔', env: '环境', tail: '收尾' };
+
+/* 场景词性：统一成「介词 + the + 地点」，别裸着名词进提示词。
+   默认 in the，露天/地面类用 on the，岸边用 by the，站牌/车站用 at the。 */
+const SCENE_PREP = {
+  'beach': 'on', 'beach night': 'on', 'street': 'on', 'night street': 'on',
+  'rainy street': 'on', 'rainy night street': 'on', 'rooftop': 'on', 'rooftop night': 'on',
+  'mountain': 'on', 'snowy field': 'on', 'snow field': 'on', 'picnic field': 'on',
+  'riverside': 'by', 'riverbank': 'by', 'lakeside': 'by',
+  'bus stop': 'at', 'bus stop rain': 'at', 'train station': 'at', 'school gate': 'at',
+};
+function scenePhrase(tag) {
+  const t = String(tag || '').trim();
+  if (!t) return '';
+  const p = SCENE_PREP[t.toLowerCase()] || 'in';
+  /* 「xxx night」这种带时间后缀的场景：拆成「in the xxx at night」，比 in the pool night 顺 */
+  if (/\snight$/i.test(t)) return `${p} the ${t.replace(/\snight$/i, '')} at night`;
+  return `${p} the ${t}`;
+}
+
+/* 动作词性：动作层统一成动名词短语。名词形式的几个动作转一下，
+   不然 sitting / reading / masturbation 混在一层里，模型读着别扭。 */
+const ACTION_VERB = {
+  'masturbation': 'masturbating',
+  'fellatio': 'performing fellatio',
+  'cunnilingus': 'performing cunnilingus',
+  'paizuri': 'performing paizuri',
+  'handjob': 'performing handjob',
+  'footjob': 'performing footjob',
+  'vibrator': 'using a vibrator',
+  'dildo': 'using a dildo',
+  'anal': 'anal sex',
+  'sex': 'having sex',
+};
+function actionPhrase(tag) {
+  const t = String(tag || '').trim();
+  if (!t) return '';
+  return ACTION_VERB[t.toLowerCase()] || t;
+}
+
 function buildSixRecipe() {
   const pool = modeScenes();
   const scenePick = state.scene ? sceneByTag(state.scene) : null;
@@ -2063,7 +2050,7 @@ function buildSixRecipe() {
   const ud = computeUndress(state.r18, outfitForCover);
   const outfitLoraOff = outfitLoraPicked && (ud.fullyNude || ud.underwearOnly);
   const outfitLoraOn = outfitLoraPicked && !outfitLoraOff;
-  const bodyPool = BODY_TYPES;
+  const bodyPool = (state.r18 && !isDevBuild()) ? BODY_TYPES.filter((b) => ADULT_OK_BODY_LABELS.has(b.label)) : BODY_TYPES;
   const useBody = (!state.char && !preset) || !!state.bodyOverride;
   const body = useBody ? (bodyPool.find((b) => b.tag === state.body) || pickOne(bodyPool)) : null;
   const bodyLabel = (state.char || preset) && !state.bodyOverride ? '角色原装' : (body ? body.label : '随机');
@@ -2095,7 +2082,7 @@ function buildSixRecipe() {
       const acts = duoActs.filter((a) => poseActionCompatible(pose, a));
       action = state.action && acts.includes(state.action) ? state.action : (pickOne(acts) || '');
     } else {
-      pose = state.pose && !DUO_ONLY_ACTIONS.has(state.pose) && (state.r18 || !ADULT_ACTIONS.includes(state.pose))
+      pose = state.pose && !DUO_ONLY_ACTIONS.has(state.pose) && (state.r18 || !ADULT_TAGS.has(state.pose))
         ? state.pose : (pickOne(soloPoses.length ? soloPoses : ['standing']) || 'standing');
       const acts = soloActs.filter((a) => poseActionCompatible(pose, a));
       action = state.action && acts.includes(state.action) ? state.action : (pickOne(acts) || '');
@@ -2154,68 +2141,113 @@ function buildSixRecipe() {
   const manualRole = people === 'duo' && state.duoRole && duoRoleCompatible(state.duoRole, pose)
     ? (DUO_ROLE_TEXT[state.duoRole] || '') : '';
   const duoRole = manualRole || autoRole;
-  const bits = [head];
-  /* 角色 trigger 是人工填的，比自动解析出来的特征词可靠；红发这类固有色就写在这里。
-     放在 head 之后、其它词之前，权重靠前。 */
+  /* ---------- 词路：八层 ----------
+     顺序 = 提示词顺序；每层只出一个说法。来源记 user / auto / random：
+     user 是用户在格子里点的，random 是系统替他抽的（放本层后部、权重 ×0.95）。 */
+  const layers = [];
+  const seenTags = new Set();
+  const pushLayer = (layer, text, from = 'user', weight = null) => {
+    const raw = String(text == null ? '' : text).trim();
+    if (!raw) return;
+    const n = from === 'random' && weight != null ? Number((weight * 0.95).toFixed(3)) : weight;
+    /* 同一段词只出一次（action 和 boost 都带 kissing 这种）；后端还会再兜一层去重 */
+    const pieces = [];
+    for (const p of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+      const k = p.toLowerCase();
+      if (seenTags.has(k)) continue;
+      seenTags.add(k);
+      pieces.push(p);
+    }
+    if (!pieces.length) return;
+    layers.push({ layer, text: w(pieces.join(', '), n), from });
+  };
+  const fromPick = (chosen, actual) => ((chosen && actual === chosen) ? 'user' : 'random');
+
+  /* L0 画质锚：压在最前，先定调 */
+  pushLayer('quality', 'best quality', 'auto');
+
+  /* L1 身份：头词 → trigger → 预设特征 → 原装 */
+  pushLayer('identity', head, 'auto');
+  /* 角色 trigger 是人工填的，比自动解析出来的特征词可靠；红发这类固有色就写在这里。 */
   if (state.char && state.char.trigger) {
-    const tr = String(state.char.trigger).split(/[,，]/).map((s) => s.trim()).filter(Boolean);
-    for (const t of tr) if (!bits.includes(t)) bits.push(t);
+    for (const t of String(state.char.trigger).split(/[,，]/).map((s) => s.trim()).filter(Boolean)) {
+      pushLayer('identity', t, 'user');
+    }
   }
   /* 预设角色没有 LoRA，人和衣服全靠词 */
   if (preset) {
-    if (preset.feature) bits.push(preset.feature);
-    if (keepCharClothes && preset.outfit) bits.push(preset.outfit);
+    pushLayer('identity', preset.feature, 'user');
+    if (keepCharClothes && preset.outfit) pushLayer('identity', preset.outfit, 'user');
   }
-  if (outfit) bits.push(`(${outfit}:1.1)`);
-  if (pose) bits.push(pose);
-  if (action) bits.push(action);
-  if (boost) bits.push(boost);
-  if (duoRole) bits.push(duoRole);
+  if (second && second.feature_words) pushLayer('identity', second.feature_words, 'user');
+
+  /* L2 身体：男方 → 阴茎 → 女主体型 → 纹身 */
+  const actionText = [pose, action].filter(Boolean).join(' ');
+  const stageSexual = /sex|penetration|fellatio|paizuri|handjob|cunnilingus|fingering|cum|creampie|orgasm|climax/i.test(stage || '');
   if (people === 'duo') {
-    bits.push('faceless male');
-    bits.push(state.maleBody || 'male, medium build');
+    pushLayer('body', 'faceless male', 'auto');
+    pushLayer('body', state.maleBody || 'male, medium build', state.maleBody ? 'user' : 'auto');
     /* 亲吻 / 拥抱 / 牵手 / 自拍这类不带男性生殖器；只有性行为动作或用户明确选了大小时才加 */
-    const actionText = [pose, action].filter(Boolean).join(' ');
-    const stageSexual = /sex|penetration|fellatio|paizuri|handjob|cunnilingus|fingering|cum|creampie|orgasm|climax/i.test(stage || '');
     if (state.r18 && (state.penis || stageSexual || PENIS_ACTION_RE.test(actionText)
       || /penetration|penis|sex|fellatio|paizuri|handjob|creampie|facial|cum/i.test(boost))) {
-      bits.push(state.penis || 'penis');
+      pushLayer('body', state.penis || 'penis', state.penis ? 'user' : 'auto');
     }
   }
-  if (body) bits.push(body.tag);
-  bits.push(`(${expression}:1.25)`);
-  if (EXPRESSION_SUPPORT[expression]) bits.push(EXPRESSION_SUPPORT[expression]);
-  if (second && second.feature_words) bits.push(second.feature_words);
-  if (props) {
-    bits.push(`with ${props}`);
-    /* 道具得带「在怎么用」，不然模型只画成摆件或拿在手里 */
-    const use = PROP_USAGE[props] || '';
-    /* 已经选了手上动作时，道具用法里「拿着 / 手里」那半句不再叠 */
-    if (use && !(hands && PROP_HAND_USAGE.test(use))) bits.push(use);
-  }
-  if (hands) bits.push(hands);
-  if (stage) bits.push(stage);
-  if (undressTags.length) bits.push(undressTags.join(', '));
-  const wetWords = state.r18 && isSexualContext(pose, action, `${state.stage} ${stage}`) ? wetTag(state.wet) : '';
-  if (wetWords) bits.push(wetWords);
+  if (body) pushLayer('body', body.tag, 'user');
   /* 纹身：先有位置才有图案和发光；性器官附近的位置正常模式不写 */
   const tattooPos = state.tattoo && (state.r18 || !ADULT_TATTOO_TAGS.has(state.tattoo)) ? state.tattoo : '';
   if (tattooPos) {
-    bits.push(tattooPos);
-    if (state.tattooPattern) bits.push(state.tattooPattern);
-    if (state.tattooGlow === 'on') bits.push('glowing tattoo');
+    pushLayer('body', tattooPos, 'user');
+    if (state.tattooPattern) pushLayer('body', state.tattooPattern, 'user');
+    if (state.tattooGlow === 'on') pushLayer('body', 'glowing tattoo', 'user');
   }
-  bits.push(scene.tag);
-  if (light) bits.push(light);
-  if (time) bits.push(time);
-  if (angle) bits.push(angle);
-  if (shot) bits.push(shot);
+
+  /* L3 衣着：服装 → 穿脱 → 淫水 */
+  if (outfit) pushLayer('wear', outfit, fromPick(state.outfit, outfit), 1.1);
+  if (undressTags.length) pushLayer('wear', undressTags.join(', '), 'user');
+  const wetWords = state.r18 && isSexualContext(pose, action, `${state.stage} ${stage}`) ? wetTag(state.wet) : '';
+  if (wetWords) pushLayer('wear', wetWords, state.wet === WET_RANDOM ? 'random' : 'user');
+
+  /* L4 构图：景别 → 角度。放在动作前，全身/半身这种全局约束先定，后面的动作词不会把画面拉近 */
+  if (shot) pushLayer('cam', shot, state.shot && shot === state.shot ? 'user' : 'auto', 0.95);
+  if (angle) pushLayer('cam', angle, 'user', 0.95);
+
+  /* L5 姿态：姿势 + 动作合成一句（动作统一成动名词）→ 阶段 → 体位补充 → 主动 */
+  const posePhrase = [pose, actionPhrase(action)].filter(Boolean).join(', ');
+  if (posePhrase) pushLayer('pose', posePhrase, fromPick(state.pose, pose), 1.0);
+  if (stage) pushLayer('pose', stage, 'auto', 1.05);
+  if (boost) pushLayer('pose', boost, 'auto');
+  if (duoRole) pushLayer('pose', duoRole, manualRole ? 'user' : 'auto');
+
+  /* L6 互动：道具 → 用法 → 手上 */
+  if (props) {
+    pushLayer('interact', `with ${props}`, fromPick(state.props, props), 0.95);
+    /* 道具得带「在怎么用」，不然模型只画成摆件或拿在手里 */
+    const usage = PROP_USAGE[props] || '';
+    /* 已经选了手上动作时，道具用法里「拿着 / 手里」那半句不再叠 */
+    if (usage && !(hands && PROP_HAND_USAGE.test(usage))) pushLayer('interact', usage, 'auto', 0.9);
+  }
+  if (hands) pushLayer('interact', hands, 'user', 1.0);
+
+  /* L7 面孔：表情 → 支撑 */
+  pushLayer('face', expression, fromPick(state.expression, expression), 1.25);
+  if (EXPRESSION_SUPPORT[expression]) pushLayer('face', EXPRESSION_SUPPORT[expression], 'auto', 1.05);
+
+  /* L8 环境：场景 → 时间 → 光 */
+  pushLayer('env', scenePhrase(scene.tag), fromPick(state.scene, scene.tag), 1.0);
+  if (time) pushLayer('env', time, fromPick(state.time, time), 0.9);
+  if (light) pushLayer('env', light, state.light ? 'user' : 'auto', 0.9);
+
+  /* L9 收尾：看镜头 → 背景 → 附加词 */
   /* 嫌弃 / 傲娇 / 闭眼 / 背影这类本来就不看镜头，别硬塞 looking at viewer 把它拉回来 */
   const fromBehind = /from behind|rear view/i.test(`${shot} ${angle}`);
   const looksAway = /looking away|side glance|looking down|closed eyes|eyes closed|eyes rolled|blank|unfocused|empty eyes|averted|sleeping/i.test(`${expression} ${EXPRESSION_SUPPORT[expression] || ''}`);
-  if (!fromBehind && !looksAway) bits.push('looking at viewer');
-  bits.push('detailed background');
-  const nude = fullyNude;
+  if (!fromBehind && !looksAway) pushLayer('tail', 'looking at viewer', 'auto', 0.9);
+  pushLayer('tail', 'detailed background', 'auto', 0.85);
+  for (const t of state.extra || []) pushLayer('tail', t, 'user');
+
+  const prompt = layers.map((l) => l.text).join(', ');
+  const nude = fullyNude || outfit === 'completely nude';
   const negative = DEFAULT_NEG
     + (nude ? ', (clothes:1.3), (dress:1.3), (shirt:1.3), (skirt:1.3), (bra:1.4), (panties:1.4)' : '')
     + (people === 'duo' ? ', fused bodies, merged bodies, conjoined, extra girl, third girl, extra person, extra limbs' : '')
@@ -2235,7 +2267,9 @@ function buildSixRecipe() {
     outfitLora: outfitLoraOn,
     people, props, hands, stage, undress: undressTags.join(', '), shot, angle, light, time, negative,
     size: people === 'duo' ? '1216x832' : '832x1216',
-    prompt: bits.filter(Boolean).join(', ') + (state.extra && state.extra.length ? ', ' + state.extra.join(', ') : ''),
+    prompt,
+    /* 分层词路：看最终词时按层 + 来源（user 点的 / auto 推的 / random 抽的）显示 */
+    layers: layers.map((l) => ({ layer: l.layer, text: l.text, from: l.from })),
   };
 }
 
@@ -2307,6 +2341,23 @@ try {
   state.r18 = localStorage.getItem('v2-r18') === '1';
 } catch { /* ignore */ }
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/** 看最终词：按八层显示，user 是点出来的、auto 是联动推的、random 是系统抽的 */
+function renderPromptLayers(layers) {
+  const box = $('#promptLayers');
+  if (!box) return;
+  const list = Array.isArray(layers) ? layers : [];
+  if (!list.length) { box.innerHTML = ''; return; }
+  const FROM = { user: '', auto: '联动', random: '随机' };
+  box.innerHTML = list.map((l) => {
+    /* 身份层的头词、画质锚是固定的（1girl, solo / best quality），不标「联动」 */
+    const tag = ((l.layer === 'identity' || l.layer === 'quality') && l.from === 'auto') ? '' : FROM[l.from];
+    return `<div class="pl-row${l.from === 'random' ? ' pl-rand' : ''}">`
+      + `<span class="pl-n">${esc(LAYER_LABEL[l.layer] || l.layer)}</span>`
+      + `<span class="pl-t">${esc(l.text)}</span>`
+      + `${tag ? `<em>${tag}</em>` : ''}</div>`;
+  }).join('');
+}
 
 function toast(msg, err = false) {
   const el = $('#toast');
@@ -2901,6 +2952,8 @@ function renderChars() {
   /* 预设角色排在最前：没下角色支也能先出图 */
   const presetOn = state.charPreset && state.charPreset.id;
   for (const pc of PRESET_CHARS) {
+    /* 成人模式不挂儿童体型的预设角色（对外分发的口径；开发版放开） */
+    if (state.r18 && !isDevBuild() && PRESET_KID.has(pc.id)) continue;
     cards.push(`<button class="char preset ${presetOn === pc.id ? 'on' : ''}" data-preset="${esc(pc.id)}" title="预设角色 · 不挂 LoRA">
       <div class="pic">${esc(isEnName() ? String(pc.feature || pc.tag || '?').trim().charAt(0).toUpperCase() : pc.name.slice(0, 1))}</div>
       <div class="nm"><b>${esc(pc.name)}</b><span>预设</span></div>
@@ -3015,6 +3068,7 @@ function pickChar(value) {
 function pickPreset(id) {
   const pc = PRESET_CHARS.find((x) => x.id === id);
   if (!pc) return;
+  if (state.r18 && !isDevBuild() && PRESET_KID.has(pc.id)) { toast('这个预设角色不进成人模式', true); return; }
   state.char = null;
   state.charPreset = pc;
   renderChars();
@@ -3030,71 +3084,64 @@ const ADULT_OUTFITS = [
   'sheer leotard', 'crotchless bodysuit', 'leotard', 'shibari', 'armbinder', 'apron only', 'latex dress',
   'bunny suit, black pantyhose, high heels', 'latex dress, black pantyhose, high heels',
   'pvc outfit', 'belly dancer outfit', 'micro dress', 'wet t-shirt', 'open-crotch pantyhose', 'bunny girl',
+  'completely nude', 'undressed', 'open shirt',
   'race queen outfit, bikini, boots, gloves, jacket on shoulders',
   'maid lingerie, white apron, black lingerie, white thighhighs',
   'body stocking, sheer, garter belt, high heels'];
 const ADULT_ACTIONS = [
-  'lying on bed, legs over shoulders', 'kneeling on floor, thighs apart, spreading pussy', 'squatting, spread legs', 'sitting on bed, legs spread, masturbation', 'lying on side, legs crossed, fingering herself',
-  'lying on bed, legs spread, pillow under hips', 'lying on side, one leg lifted, spreading pussy', 'sitting on chair, spreading pussy', 'kneeling on bed, spreading pussy', 'on all fours on bed, spreading pussy', 'sitting on floor, spread legs, fingering herself', 'standing, spread legs, fingering herself', 'lying on sofa, legs up, masturbation',
-  'on bed', 'on stomach', 'kneeling', 'spread legs', 'masturbation', 'doggystyle', 'cowgirl', 'breast grab',
-  'missionary', 'reverse cowgirl', 'standing sex', 'against wall', 'spooning', 'mating press', 'prone bone',
-  '69', 'fellatio', 'cunnilingus', 'paizuri', 'handjob', 'fingering', 'vibrator', 'dildo', 'anal',
-  'creampie', 'facial', 'cum in mouth', 'exhibitionism', 'public nudity', 'flashing', 'on all fours', 'leg lift', 'bent over', 'squatting', 'footjob', 'suspended congress', 'lotus',
-  'leg lock', 'lifted legs', 'bent over desk', 'presenting', 'legs up', 'face down ass up', 'holding own breasts',
-  'licking lips', 'grinding on him', 'arched back', 'sitting on lap', 'straddling', 'face to face', 'back hug',
-  'after sex', 'afterglow', 'lying limp', 'messy hair', 'cum on body', 'cum on stomach', 'cum dripping',
-  'cum overflow', 'panting', 'under blanket', 'sitting up tired', 'orgasm', 'squirting', 'body trembling',
-  'legs trembling', 'toes curling', 'gripping bedsheet', 'clutching pillow', 'hand between legs', 'knees weak',
-  'kneeling on bed', 'bent over bed', 'lying on bed spread legs', 'sitting on office desk', 'kneeling under desk',
-  'bent over sink', 'kneeling in shower', 'kneeling on grass', 'lying on back seat', 'sitting in passenger seat',
-  'lying on sleeping bag', 'on all fours on sofa', 'riding pillow',
-  'sitting on table', 'lying on table', 'sitting on desk spread legs', 'bent over table',
-  'masturbating through panties', 'fingering herself', 'rubbing herself', 'holding vibrator',
-  'pulling panties aside', 'hand on crotch', 'spread pussy',
-  'sitting with legs spread', 'lying on back with legs spread', 'presenting pussy', 'cameltoe',
-  'panty pull', 'bra lift', 'cupping breasts', 'underboob', 'sideboob', 'cleavage', 'nipple slip',
-  'one leg up', 'kneeling with legs apart', 'hips thrust', 'presenting breasts', 'ass focus',
-  /* 半途：同一张图里最色的往往不是体位名，是那一秒 */
-  'mid-penetration', 'just entered', 'half inside', 'tip in', 'barely inside',
-  'pulling out', 'pulling out slowly', 'still inside', 'staying inside', 'thrusting',
-  'hips pressed together', 'about to enter', 'about to cum', 'holding it in',
-  'stopped mid-thrust', 'pressed down', 'pinned wrists', 'hand on throat', 'hair pulled',
-  /* 地点 + 摆法的成人版 */
-  'lying on bed, legs spread, spreading pussy', 'lying on bed, legs raised high',
-  'sitting on chair, legs spread, fingering herself', 'sitting on desk, spread legs, masturbation',
-  'on bed, all fours, ass up', 'on floor, legs spread in M shape, fingering herself',
-
-  'lying on bed, legs spread, masturbation', 'lying on sofa, legs spread, fingering herself', 'sitting on chair, legs apart, spreading pussy', 'kneeling on bed, thighs apart, fingering herself', 'lying on bed, on side, one leg lifted, fingering herself', 'standing, one leg up, masturbation', 'lying on desk, spread legs, masturbation',
-
-  /* 2026-11-24 补：之前漏登记的「地点 + 摆法 / 张腿抬腿」成人姿势 */
-  'kneeling on bed, thighs apart, leaning back',
-  'sitting on bed, legs spread, leaning back on hands',
-  'sitting on chair, legs over armrest, leaning back',
-  'kneeling on bed, face down, ass up',
-  'sitting on chair, legs spread, leaning back',
-  'kneeling on sofa, thighs apart',
-  'lying on stomach on bed, legs up',
-  'sitting on chair, both legs over armrest',
-  'on stomach on floor, legs up',
-  'lying on back, legs up',
-  'lying on bed, legs spread in M shape, knees up',
-  'lying on bed, legs up',
-  'sitting on chair, legs spread',
-  'sitting on floor, legs spread in M shape',
-  'kneeling on bed, thighs apart',
-  'standing, legs apart',
-  'on stomach on bed, ass up, legs apart',
-  'sitting on desk, legs spread in M shape',
-  'lying on sofa, legs spread',
-  'sitting in chair backwards, legs apart',
-  'lying on sofa, legs up',
-  'lying on sofa, legs spread in M shape',
-  'sitting on sofa, legs spread',
-  'lying on desk, legs spread',
-  'sitting on stairs, legs apart',
-  'standing, back against wall, legs apart',
-  'lying on floor, legs up',
+  /* 成人专属动作池：只放「单人正在做的成人行为」。
+     体位 / 射精收尾在 DUO_*，半途阶段在 STAGE_*，姿势串在 EXTRA_POSES_SFW。 */
+  'fingering herself', 'rubbing herself', 'masturbating through panties', 'masturbation',
+  'fingering', 'holding vibrator', 'vibrator', 'dildo',
+  'anal', 'riding pillow', 'pulling panties aside', 'hand on crotch',
+  'hand between legs', 'spread pussy', 'presenting pussy', 'presenting breasts',
+  'presenting', 'panty pull', 'bra lift', 'cupping breasts',
+  'holding own breasts', 'breast grab', 'underboob', 'sideboob',
+  'cleavage', 'nipple slip', 'cameltoe', 'exhibitionism',
+  'public nudity', 'flashing', 'grinding on him', 'licking lips',
+  'arched back',
 ];
+
+/* 成人标记：所有带成人含义的词。正常模式统一靠这个挡，跟动作池拆开维护。
+   加新的成人词：动作池加一份，这里也加一份；只加这里等于「标记但不给选」。 */
+const ADULT_TAGS = new Set([
+  'lying on bed, legs over shoulders', 'kneeling on floor, thighs apart, spreading pussy', 'squatting, spread legs', 'sitting on bed, legs spread, masturbation',
+  'lying on side, legs crossed, fingering herself', 'lying on bed, legs spread, pillow under hips', 'lying on side, one leg lifted, spreading pussy', 'sitting on chair, spreading pussy',
+  'kneeling on bed, spreading pussy', 'on all fours on bed, spreading pussy', 'sitting on floor, spread legs, fingering herself', 'standing, spread legs, fingering herself',
+  'lying on sofa, legs up, masturbation', 'on bed', 'on stomach', 'kneeling',
+  'spread legs', 'masturbation', 'breast grab', 'fingering',
+  'vibrator', 'dildo', 'anal', 'exhibitionism',
+  'public nudity', 'flashing', 'on all fours', 'leg lift',
+  'bent over', 'squatting', 'bent over desk', 'presenting',
+  'legs up', 'face down ass up', 'holding own breasts', 'licking lips',
+  'grinding on him', 'arched back', 'after sex', 'afterglow',
+  'lying limp', 'messy hair', 'cum on body', 'cum on stomach',
+  'cum dripping', 'cum overflow', 'panting', 'under blanket',
+  'sitting up tired', 'orgasm', 'squirting', 'body trembling',
+  'legs trembling', 'toes curling', 'gripping bedsheet', 'clutching pillow',
+  'hand between legs', 'knees weak', 'kneeling on bed', 'bent over bed',
+  'lying on bed spread legs', 'sitting on office desk', 'kneeling under desk', 'bent over sink',
+  'kneeling in shower', 'kneeling on grass', 'lying on back seat', 'sitting in passenger seat',
+  'lying on sleeping bag', 'on all fours on sofa', 'riding pillow', 'sitting on table',
+  'lying on table', 'sitting on desk spread legs', 'bent over table', 'masturbating through panties',
+  'fingering herself', 'rubbing herself', 'holding vibrator', 'pulling panties aside',
+  'hand on crotch', 'spread pussy', 'sitting with legs spread', 'lying on back with legs spread',
+  'presenting pussy', 'cameltoe', 'panty pull', 'bra lift',
+  'cupping breasts', 'underboob', 'sideboob', 'cleavage',
+  'nipple slip', 'one leg up', 'kneeling with legs apart', 'hips thrust',
+  'presenting breasts', 'ass focus', 'lying on bed, legs spread, spreading pussy', 'lying on bed, legs raised high',
+  'lying on bed, legs spread', 'sitting on chair, legs spread, fingering herself', 'sitting on desk, spread legs, masturbation', 'on bed, all fours, ass up',
+  'on floor, legs spread in M shape, fingering herself', 'lying on bed, legs spread, masturbation', 'lying on sofa, legs spread, fingering herself', 'sitting on chair, legs apart, spreading pussy',
+  'kneeling on bed, thighs apart, fingering herself', 'lying on bed, on side, one leg lifted, fingering herself', 'standing, one leg up, masturbation', 'lying on desk, spread legs, masturbation',
+  'kneeling on bed, thighs apart, leaning back', 'sitting on bed, legs spread, leaning back on hands', 'sitting on chair, legs over armrest, leaning back', 'kneeling on bed, face down, ass up',
+  'sitting on chair, legs spread, leaning back', 'kneeling on sofa, thighs apart', 'lying on stomach on bed, legs up', 'sitting on chair, both legs over armrest',
+  'on stomach on floor, legs up', 'lying on back, legs up', 'lying on bed, legs spread in M shape, knees up', 'lying on bed, legs up',
+  'sitting on chair, legs spread', 'sitting on floor, legs spread in M shape', 'kneeling on bed, thighs apart', 'standing, legs apart',
+  'on stomach on bed, ass up, legs apart', 'sitting on desk, legs spread in M shape', 'lying on sofa, legs spread', 'sitting in chair backwards, legs apart',
+  'lying on sofa, legs up', 'lying on sofa, legs spread in M shape', 'sitting on sofa, legs spread', 'lying on desk, legs spread',
+  'sitting on stairs, legs apart', 'standing, back against wall, legs apart', 'lying on floor, legs up',
+]);
+
 const ADULT_EXPRESSIONS = [
   'seductive expression', 'half-closed eyes', 'ahegao', 'drool', 'unfocused eyes', 'heart-shaped pupils',
   'teary eyes', 'biting lip', 'smirk', 'moaning', 'lewd expression', 'blissful expression', 'parted lips',
@@ -3122,9 +3169,10 @@ function renderAuxRows() {
 
 function renderSix() {
   const body = BODY_TYPES.find((b) => b.tag === state.body);
+  const bodyOk = !body || !state.r18 || isDevBuild() || ADULT_OK_BODY_LABELS.has(body.label);
   const override = !!state.bodyOverride;
   const locked = (!!state.char || !!state.charPreset) && !override;
-  $('#sixBody').textContent = locked ? '角色原装' : (body ? body.label : '随机');
+  $('#sixBody').textContent = locked ? '角色原装' : (body && bodyOk ? body.label : '随机');
   const bodyCard = document.querySelector('#sixGrid [data-pick="body"]');
   if (bodyCard) {
     bodyCard.disabled = locked;
@@ -3167,9 +3215,13 @@ function renderSix() {
   }
   const exprOk = state.expression && (state.r18 ? EXPRESSIONS_R18 : EXPRESSIONS_SFW).includes(state.expression);
   $('#sixExpression').textContent = exprOk ? labelOf(EXPRESSION_LABELS, state.expression) : '随机';
-  $$('#sixGrid .six-card').forEach((el) => {
+  $$('#sixGrid .six-card[data-pick]').forEach((el) => {
     const k = el.dataset.pick;
-    el.classList.toggle('on', !!state[k] || (k === 'action' && !!state.actionLora) || (k === 'outfit' && !!state.outfitLora));
+    /* 人数默认就是「单人」，不算用户选过；只有切到双人才点灯 */
+    const on = k === 'people' ? state.people === 'duo'
+      : k === 'props' ? !!state.useProps
+      : (!!state[k] || (k === 'action' && !!state.actionLora) || (k === 'outfit' && !!state.outfitLora));
+    el.classList.toggle('on', on);
   });
   if ($('#sixPeople')) $('#sixPeople').textContent = pairLabel(PEOPLE_OPTS, state.people || 'solo');
   if ($('#morePeople')) $('#morePeople').textContent = pairLabel(PEOPLE_OPTS, state.people || 'solo');
@@ -3185,7 +3237,7 @@ function renderSix() {
   renderAuxRows();
   const outfitLoraOn = !!state.outfitLora;
   /* 只剩一张「穿脱」卡；挂服装支时它作用在支上 */
-  const undressCard = document.querySelector('#moreGrid [data-pick="undress"]');
+  const undressCard = document.querySelector('#sixGrid [data-pick="undress"]');
   if (undressCard) {
     undressCard.title = outfitLoraOn ? '服装支：半脱/敞开只是加词、支照挂；全裸或只穿内衣才不挂这支' : '';
   }
@@ -3198,7 +3250,7 @@ function renderSix() {
   if ($('#morePenisRow')) $('#morePenisRow').classList.toggle('hidden', !duo || !state.r18);
   if ($('#moreProps')) $('#moreProps').textContent = state.useProps ? (state.props && propSceneCompatible(state.props, state.scene) && propHandCompatible(state.props, state.hands) ? pairLabel(state.r18 ? PROPS_R18 : PROPS_SFW, state.props) : '随机') : '不带道具';
   if ($('#useProps')) $('#useProps').checked = !!state.useProps;
-  const propCard = document.querySelector('#moreGrid [data-pick="props"]');
+  const propCard = document.querySelector('#sixGrid [data-pick="props"]');
   if (propCard) {
     propCard.disabled = !state.useProps;
     propCard.classList.toggle('disabled', !state.useProps);
@@ -3217,7 +3269,7 @@ function renderSix() {
   if ($('#moreTattooGlow')) $('#moreTattooGlow').textContent = state.tattooGlow === 'on' ? '开' : '关';
   /* 没选位置时图案 / 发光卡先锁住，别让用户打开一个选不了的列表 */
   for (const f of ['tattooPattern', 'tattooGlow']) {
-    const card = document.querySelector(`#moreGrid [data-pick="${f}"]`);
+    const card = document.querySelector(`#sixGrid [data-pick="${f}"]`);
     if (!card) continue;
     const off = !state.tattoo;
     card.disabled = off;
@@ -3225,7 +3277,6 @@ function renderSix() {
     card.title = off ? '先选纹身位置' : '';
   }
   for (const id of ['#moreUndressRow', '#moreWetRow']) $(id)?.classList.toggle('hidden', !state.r18);
-  $$('#moreGrid .six-card').forEach((el) => el.classList.toggle('on', !!state[el.dataset.pick]));
 }
 
 function renderQuick() {
@@ -3298,8 +3349,8 @@ function setMode(r18) {
   if (!state.r18) {
     if (state.scene && sceneByTag(state.scene)?.mode === 'r18') state.scene = '';
     if (state.outfit && ADULT_OUTFITS.includes(state.outfit)) state.outfit = '';
-    if (state.pose && ADULT_ACTIONS.includes(state.pose)) state.pose = '';
-    if (state.action && ADULT_ACTIONS.includes(state.action)) state.action = '';
+    if (state.pose && ADULT_TAGS.has(state.pose)) state.pose = '';
+    if (state.action && ADULT_TAGS.has(state.action)) state.action = '';
     if (state.expression && ADULT_EXPRESSIONS.includes(state.expression)) state.expression = '';
     if (state.props && !PROPS_SFW.some((x) => x[1] === state.props)) state.props = '';
     if (state.hands && !HANDS_SFW.some((x) => x[1] === state.hands)) state.hands = '';
@@ -3319,7 +3370,12 @@ function setMode(r18) {
     state.people = 'solo';
     state.duoRole = '';
   } else {
-    // 体型不再按模式限制：所有档位在任何模式都能选
+    /* 成人模式：幼女 / 萝莉 不进池，已经选着的清掉（开发版放开） */
+    if (!isDevBuild()) {
+      const cur = BODY_TYPES.find((b) => b.tag === state.body);
+      if (cur && !ADULT_OK_BODY_LABELS.has(cur.label)) state.body = '';
+      if (state.charPreset && PRESET_KID.has(state.charPreset.id)) state.charPreset = null;
+    }
   }
   const duoPosePool = duoPosePairs().map((x) => x[1]);
   const duoActPool = duoActPairs().map((x) => x[1]);
@@ -3383,7 +3439,7 @@ function buildBuiltinTags() {
   (SCENES || []).forEach((s) => add(s.tag, s.label, '场景'));
   [...new Set([...(SCENES || []).flatMap((s) => s.outfits || []), ...EXTRA_OUTFITS])]
     .forEach((t) => add(t, OUTFIT_LABELS[t] || '', '服装'));
-  [...new Set([...EXTRA_ACTIONS_SFW, ...ADULT_ACTIONS])]
+  [...new Set([...EXTRA_ACTIONS_SFW, ...ADULT_TAGS])]
     .forEach((t) => add(t, ACTION_LABELS[t] || '', '姿势'));
   [...new Set([...EXPRESSIONS_SFW, ...EXPRESSIONS_R18])]
     .forEach((t) => add(t, EXPRESSION_LABELS[t] || '', '表情'));
@@ -3658,11 +3714,73 @@ function allOutfits() {
 }
 
 /* 场景里的单件也不让选：只取场景里对得上的套装，没有就用全量 */
+/* 场景里还在用单件（针织衫 / 白T / 牛仔裤 / 风衣…）：统一换成整套。
+   不然它们被「只留整套」白名单滤掉，场景服装就退化成 fallback，随机起来跟场景不搭。 */
+const SCENE_OUTFIT_MAP = {
+  'knit sweater': 'casual clothes, cardigan, skirt, loafers',
+  'white t-shirt': 'casual clothes, cardigan, skirt, loafers',
+  'camisole': 'casual clothes, cardigan, skirt, loafers',
+  'sun shirt': 'casual clothes, cardigan, skirt, loafers',
+  'hoodie': 'casual clothes, cardigan, skirt, loafers',
+  'shorts': 'casual clothes, cardigan, skirt, loafers',
+  'cardigan': 'casual clothes, cardigan, skirt, loafers',
+  'crop top': 'casual clothes, cardigan, skirt, loafers',
+  'apron': 'apron only',
+  'fishnet': 'body stocking, sheer, garter belt, high heels',
+  'black pantyhose': 'office lady, white blouse, pencil skirt, black pantyhose',
+  'collar': 'bondage outfit, straps, harness, cuffs',
+  'coat': 'winter coat, turtleneck, plaid skirt, black tights, boots',
+  'turtleneck': 'winter coat, turtleneck, plaid skirt, black tights, boots',
+  'sports bra': 'track suit, sneakers',
+  'leggings': 'track suit, sneakers',
+  'blouse': 'office lady, white blouse, pencil skirt, black pantyhose',
+  'jeans': 'casual suit, blazer, jeans, sneakers',
+  'corset': 'lace babydoll, thighhighs, garter belt',
+  'bustier': 'lingerie',
+  'dress': 'casual clothes, cardigan, skirt, loafers',
+  'uniform': 'school uniform, pleated skirt, black knee socks, loafers',
+  'jersey': 'volleyball uniform, jersey, shorts, knee pads, sneakers',
+  'tennis outfit': 'tennis outfit, pleated skirt, white socks, sneakers',
+  'swimsuit': 'one-piece swimsuit, sandals',
+  'school uniform': 'school uniform, pleated skirt, black knee socks, loafers',
+  'sailor uniform': 'sailor uniform, pleated skirt, white socks, loafers',
+  'pajamas': 'pajamas, white socks, slippers',
+  'casual clothes': 'casual clothes, cardigan, skirt, loafers',
+  'bikini': 'bikini, straw hat, sandals',
+  'kimono': 'kimono, obi, tabi, sandals',
+  'cheongsam': 'cheongsam, black pantyhose, high heels, hair ornament',
+  'gym clothes': 'gym uniform, bloomers, white socks, sneakers',
+  'office lady': 'office lady, white blouse, pencil skirt, black pantyhose',
+  'yukata': 'yukata, obi, sandals, hair ornament',
+  'wet clothes': 'wet clothes, wet shirt, see-through',
+  'bunny suit': 'bunny suit, black pantyhose, high heels, bunny ears',
+  'latex': 'latex dress, black pantyhose, high heels, gloves',
+  'sundress': 'casual clothes, cardigan, skirt, loafers',
+  'school swimsuit': 'school swimsuit, swim cap, sandals',
+  'wedding dress': 'wedding dress, veil, white thighhighs, gloves',
+  'gothic lolita': 'gothic lolita, frilled dress, black thighhighs, mary janes',
+  'stage costume': 'idol costume, frilled skirt, white thighhighs, boots',
+  'hanfu': 'hanfu, hair ornament, flats',
+  'nurse outfit': 'nurse outfit, white dress, nurse cap, white pantyhose',
+  'evening gown': 'evening gown, black pantyhose, high heels, earrings',
+  'bondage outfit': 'bondage outfit, straps, harness, cuffs',
+};
+
 function sceneOutfitSets(scene) {
-  const list = scene ? (scene.outfits || []).filter((t) => OUTFIT_SETS.has(t) && (state.r18 || !ADULT_OUTFITS.includes(t))) : [];
+  const raw = scene ? (scene.outfits || []) : [];
+  const seen = new Set();
+  const list = [];
+  for (const t of raw) {
+    const mapped = SCENE_OUTFIT_MAP[t] || t;
+    if (seen.has(mapped)) continue;
+    if (!OUTFIT_SETS.has(mapped)) continue;
+    if (!state.r18 && ADULT_OUTFITS.includes(mapped)) continue;
+    seen.add(mapped);
+    list.push(mapped);
+  }
   if (list.length) return list;
   /* 场景自带的衣服全被「整套」白名单滤掉时，别退回全量：冬季街道会随机出泳装 */
-  const fallback = ['casual clothes', 'school uniform, pleated skirt, black knee socks, loafers'];
+  const fallback = ['casual clothes, cardigan, skirt, loafers', 'school uniform, pleated skirt, black knee socks, loafers'];
   if (state.r18) fallback.push('lingerie');
   const valid = fallback.filter((t) => OUTFIT_SETS.has(t) && (state.r18 || !ADULT_OUTFITS.includes(t)));
   return valid.length ? valid : allOutfits();
@@ -3680,8 +3798,11 @@ const POSE_EXCLUDE = new Set([
   'toes', 'soles', 'bare legs', 'pantyhose feet', 'lower body, thighs and feet',
 ]);
 function allActions() {
-  const all = [...new Set([...SCENES.flatMap((s) => [...(s.actions || []), ...(SCENE_EXTRA_ACTIONS[s.tag] || [])]), ...EXTRA_ACTIONS_SFW])];
-  return all.filter((x) => !DUO_ONLY_ACTIONS.has(x) && !POSE_EXCLUDE.has(x) && (state.r18 || !ADULT_ACTIONS.includes(x)));
+  /* 成人专属动作（ADULT_ACTIONS）以前只当「成人标记」用，从不进池子；
+     现在它同时是成人模式的来源之一，正常模式靠下面的过滤挡住。 */
+  const extra = state.r18 ? ADULT_ACTIONS : [];
+  const all = [...new Set([...SCENES.flatMap((s) => [...(s.actions || []), ...(SCENE_EXTRA_ACTIONS[s.tag] || [])]), ...EXTRA_ACTIONS_SFW, ...EXTRA_POSES_SFW, ...extra])];
+  return all.filter((x) => !DUO_ONLY_ACTIONS.has(x) && !POSE_EXCLUDE.has(x) && (state.r18 || !ADULT_TAGS.has(x)));
 }
 
 /* pose 是身体怎么摆；action 是在干什么。两者分开选、分开进词。 */
@@ -3733,6 +3854,12 @@ const ACTION_SCENE_RULES = [
   [/painting|drawing at easel/i, /art room/i],
   [/praying/i, /shrine|church/i],
   [/in water|wading|swimming/i, /pool|beach|onsen|bath|swimming/i],
+  /* 补进全局池的日常动作：不在不该出现的场景里冒出来 */
+  [/holding umbrella/i, /rain|street|bus stop|city|garden|park|festival/i],
+  [/eating|eating popcorn|holding drink/i, /cafe|living room|kitchen|convenience store|campsite|dessert shop|dining|restaurant|park|festival|beach|cinema|classroom/i],
+  [/sleeping/i, /bedroom|bus interior|dorm|living room|tent|sofa|tatami|hotel/i],
+  [/dancing/i, /nightclub|party|stage|backstage|street|festival|dance/i],
+  [/looking at sky/i, /campsite|rooftop|shrine|forest|beach|balcony|park|garden/i],
 ];
 function actionSceneCompatible(action, scene) {
   if (!action || !scene) return true;
@@ -3769,7 +3896,7 @@ function poseShotCompatible(pose, action, shot, angle) {
 }
 
 function pickerOptionsFor(field) {
-  if (field === 'body') return BODY_TYPES.map((b) => ({ tag: b.tag, label: b.label }));
+  if (field === 'body') return ((state.r18 && !isDevBuild()) ? BODY_TYPES.filter((b) => ADULT_OK_BODY_LABELS.has(b.label)) : BODY_TYPES).map((b) => ({ tag: b.tag, label: b.label }));
   if (field === 'people') return PEOPLE_OPTS.map(([label, tag]) => ({ tag, label }));
   if (field === 'duoRole') return state.people === 'duo'
     ? DUO_ROLE_OPTS.filter(([, tag]) => duoRoleCompatible(tag, state.pose)).map(([label, tag]) => ({ tag, label }))
@@ -3832,7 +3959,7 @@ function pickerOptionsFor(field) {
       return duoPosePairs().filter(([, t]) => poseActionCompatible(t, state.action)).map(([label, tag]) => ({ tag, label }));
     }
     const tags = poseTagsOf(filterActionsForScene(allActions(), scene && scene.tag));
-    return tags.filter((x) => !DUO_ONLY_ACTIONS.has(x) && (state.r18 || !ADULT_ACTIONS.includes(x)) && poseActionCompatible(x, state.action))
+    return tags.filter((x) => !DUO_ONLY_ACTIONS.has(x) && (state.r18 || !ADULT_TAGS.has(x)) && poseActionCompatible(x, state.action))
       .map((x) => ({ tag: x, label: labelOf(ACTION_LABELS, x) }));
   }
   if (field === 'action') {
@@ -3844,7 +3971,7 @@ function pickerOptionsFor(field) {
     /* 动作按场景收：只留这个场景能用的 */
     const tags = actTagsOf(filterActionsForScene(allActions(), scene && scene.tag));
     return [{ tag: '__ACTION_LORA__', label: '使用动作 LoRA…' },
-      ...tags.filter((x) => !DUO_ONLY_ACTIONS.has(x) && (state.r18 || !ADULT_ACTIONS.includes(x)) && poseActionCompatible(state.pose, x) && actionUndressCompatible(x, ud) && actionSceneCompatible(x, scene && scene.tag)).map((x) => ({ tag: x, label: labelOf(ACTION_LABELS, x) }))];
+      ...tags.filter((x) => !DUO_ONLY_ACTIONS.has(x) && (state.r18 || !ADULT_TAGS.has(x)) && poseActionCompatible(state.pose, x) && actionUndressCompatible(x, ud) && actionSceneCompatible(x, scene && scene.tag)).map((x) => ({ tag: x, label: labelOf(ACTION_LABELS, x) }))];
   }
   if (field === 'expression') {
     const all = state.r18 ? EXPRESSIONS_R18 : EXPRESSIONS_SFW;
@@ -3871,13 +3998,14 @@ function openPicker(field, skipRefresh = false) {
   if (field === 'body' && (state.char || state.charPreset) && !state.bodyOverride) { toast('挂角色时用角色原设体型，不覆盖', true); return; }
   if (field === 'props' && !state.useProps) { toast('先打开「启用道具」', true); return; }
   if ((field === 'tattooPattern' || field === 'tattooGlow') && !state.tattoo) { toast('先选纹身位置', true); return; }
+  if (field === 'wet' && !(state.r18 && isSexualContext(state.pose, state.action, state.stage))) { toast('先选一个性爱姿势或动作，再选淫水', true); return; }
   state.pickerField = field;
   /* 底部按钮在有的字段是「随机抽一个」，有的是「清空回默认/无」 */
   $('#pickerRandom').textContent = (field === 'tattoo' || field === 'tattooPattern') ? '随机' : pickerClearLabel(field);
   const titles = {
     body: '选体型', scene: '选场景', outfit: '选服装', pose: '选姿势', action: '选动作', expression: '选表情',
     duoRole: '选双人主动',
-    people: '选人数', model: '选模型', clip: '选 CLIP', vae: '选 VAE', maleBody: '选男性体型', penis: '选肉棒大小', charOutfit: '选穿脱程度', props: '选道具', hands: '选手上动作', stage: '选阶段', undress: '选穿脱',
+    people: '选人数', model: '选模型', clip: '选 CLIP', vae: '选 VAE', maleBody: '选男性体型', penis: '选阴茎大小', charOutfit: '选穿脱程度', props: '选道具', hands: '选手上动作', stage: '选阶段', undress: '选穿脱',
     outfitLora: '选服装支', auxLora: '选辅助支', actionLora: '选动作支', auxSlot: '选一支 LoRA',
     shot: '选景别', angle: '选角度', light: '选光线', time: '选时间',
     tattoo: '选纹身位置', tattooPattern: '选纹身图案', tattooGlow: '纹身发光',
@@ -4132,6 +4260,7 @@ function applyQuick(i) {
   state.pose = quickIsPose ? q.action : '';
   state.action = quickIsPose ? '' : q.action;
   state.expression = q.expression;
+  state.time = q.time !== undefined ? q.time : '';
   state.people = q.people || 'solo';
   state.duoRole = '';
   /* 快捷风格是整套预设：先把上一轮的穿脱清掉，别让「全裸」把新衣服又脱了 */
@@ -4224,7 +4353,7 @@ function charPayload(it) {
 
 
 
-const viewer = { scale: 1, x: 0, y: 0, drag: null };
+const viewer = { scale: 1, x: 0, y: 0, drag: null, list: [], index: 0 };
 
 function applyViewerTransform() {
   const img = $('#viewerImg');
@@ -4256,15 +4385,39 @@ function setViewerZoom(next, cx, cy) {
   applyViewerTransform();
 }
 
-function openImageViewer(url) {
-  if (!url) return;
+/** 看图窗：list 是同一批（本次结果 / 历史 / 图库 / 记录）的图，能左右翻 */
+function viewerGoto(i) {
+  const list = viewer.list || [];
+  if (!list.length) return;
+  const n = list.length;
+  viewer.index = ((i % n) + n) % n;
+  const url = list[viewer.index];
   const img = $('#viewerImg');
   if (img) img.src = url;
   const link = $('#viewerOpen');
   if (link) link.href = url;
+  const pos = $('#viewerPos');
+  if (pos) pos.textContent = (viewer.index + 1) + ' / ' + n;
+  const nav = $('#viewerNav');
+  if (nav) nav.classList.toggle('hidden', n < 2);
+  resetViewer();
+}
+
+function viewerStep(delta) {
+  if (!viewer.list || viewer.list.length < 2) return;
+  viewerGoto(viewer.index + delta);
+}
+
+function openImageViewer(url, list) {
+  if (!url) return;
+  const arr = (Array.isArray(list) ? list : []).filter(Boolean);
+  viewer.list = arr.length ? arr : [url];
+  let i = viewer.list.indexOf(url);
+  if (i < 0) { viewer.list = [url]; i = 0; }
+  viewer.index = i;
+  viewerGoto(i);
   const gate = $('#imgViewer');
   if (gate) gate.classList.remove('hidden');
-  resetViewer();
 }
 
 function closeImageViewer() {
@@ -4273,6 +4426,10 @@ function closeImageViewer() {
   const img = $('#viewerImg');
   if (img) img.src = '';
   viewer.drag = null;
+  viewer.list = [];
+  viewer.index = 0;
+  const nav = $('#viewerNav');
+  if (nav) nav.classList.add('hidden');
   resetViewer();
 }
 
@@ -4323,7 +4480,7 @@ async function generate(sequenceMode = '') {
     variants: [],
     twoPass: null,
   });
-  if (sequenceMode === 'stage' && !randMatch) {
+  if (sequenceMode === 'stage') {
     const recipe = buildSixRecipe();
     if (!state.r18) { toast('阶段序列只在成人模式开', true); return; }
     if (!isSexualContext(state.pose, state.action, state.stage)) {
@@ -4334,6 +4491,8 @@ async function generate(sequenceMode = '') {
       toast('阶段序列先按双人 1v1 做，单人的等下一版', true);
       return;
     }
+    /* 阶段序列固定 7 张，张数下拉（4 张 / 每张随机）不作数，别因此跳去跑随机图 */
+    if (randMatch || batch > 1) toast('阶段序列固定 7 张，张数选择不参与');
     let fixedSeed = Number($('#simpleSeed') && $('#simpleSeed').value);
     if (!Number.isFinite(fixedSeed) || fixedSeed < 0) fixedSeed = Math.floor(Math.random() * 2147483000);
     if ($('#simpleSeed')) $('#simpleSeed').value = fixedSeed;
@@ -4358,6 +4517,7 @@ async function generate(sequenceMode = '') {
     if ($('#recipeHint')) {
       $('#recipeHint').textContent = `本次：${recipe.sceneLabel} · ${recipe.bodyLabel} · ${recipe.outfitLabel} · ${recipe.actionLabel} · ${recipe.expressionLabel} · ${batch} 张`;
     }
+    state.lastLayers = recipe.layers;
     const body = makeBody(recipe, batch);
     await runGeneration(body, 'simple', { mode: 'simple', baseScene: recipe.prompt, body });
     return;
@@ -4368,6 +4528,7 @@ async function generate(sequenceMode = '') {
     if ($('#recipeHint')) {
       $('#recipeHint').textContent = `第 ${i + 1}/${batch} 张：${recipe.sceneLabel} · ${recipe.bodyLabel} · ${recipe.outfitLabel} · ${recipe.actionLabel} · ${recipe.expressionLabel}`;
     }
+    state.lastLayers = recipe.layers;
     const body = makeBody(recipe, 1);
     await runGeneration(body, 'simple', { mode: 'simple', baseScene: recipe.prompt, body });
   }
@@ -4387,6 +4548,7 @@ async function runGeneration(body, mode = 'simple', spec = null) {
   if (pre && Array.isArray(pre.warnings) && pre.warnings.length) toast(pre.warnings[0]);
   if (pre && pre.prompt && $('#promptText')) {
     $('#promptText').value = pre.prompt;
+    renderPromptLayers(state.lastLayers);
     $('#promptBox').classList.remove('hidden');
   }
   state.genStartedAt = Date.now();
@@ -4463,7 +4625,7 @@ async function poll(id, mode = 'simple') {
       btn.textContent = mode === 'advanced' ? '用这些参数出图' : '一键出图';
     }
     if (j.status === 'error') {
-      $('#stageActions').innerHTML = '';
+      restoreStage();
       $('#createHint').textContent = '出图失败：' + (j.error || '未知错误');
       toast(j.error || '出图失败', true);
       return;
@@ -4480,7 +4642,7 @@ async function poll(id, mode = 'simple') {
         renderStageResults(outs);
         $('#createHint').textContent = `已取消（前面 ${outs.length} 张还在）`;
       } else {
-        $('#stageActions').innerHTML = '';
+        restoreStage();
         $('#createHint').textContent = '已取消';
       }
       return;
@@ -4535,9 +4697,22 @@ function rerunSeed(seed) {
   runGeneration(body, spec.mode || state.lastMode || 'simple', { ...spec, body });
 }
 
+/** 出图区回到上一批结果；没有上一批就回空态 */
+function restoreStage() {
+  if (state.results && state.results.length) { renderStageResults(state.results); return; }
+  const stage = $('#stage');
+  if (stage) {
+    stage.className = 'stage empty';
+    stage.innerHTML = '<div class="stage-empty"><div class="stage-orb"></div><b>这里会出图</b><span>选好角色和风格，点一下就出。</span></div>';
+  }
+  if ($('#stageActions')) $('#stageActions').innerHTML = '';
+}
+
 function renderStageResults(outputs) {
+  state.results = outputs;
   if (outputs.length === 1) { renderStage(outputs[0]); return; }
   const stage = $('#stage');
+  const list = outputs.map(shotUrl).filter(Boolean);
   stage.className = 'stage';
   stage.innerHTML = `<div class="stage-grid">${outputs.map((o, i) => {
     const url = shotUrl(o);
@@ -4556,7 +4731,7 @@ function renderStageResults(outputs) {
   $$('.stage-grid .sg', stage).forEach((el) => {
     const o = outputs[Number(el.dataset.idx)];
     const img = $('.sg-img', el);
-    if (img) img.onclick = () => { if (img.dataset.url) openImageViewer(img.dataset.url); };
+    if (img) img.onclick = () => { if (img.dataset.url) openImageViewer(img.dataset.url, list); };
     $$('[data-gact]', el).forEach((b) => {
       b.onclick = async (e) => {
         e.stopPropagation();
@@ -4575,23 +4750,40 @@ function renderStageResults(outputs) {
       <button class="primary" data-act="again">再来一批</button>
       <button class="ghost" data-act="copy">复制词</button>
     </div>
-    <div class="stage-meta">${outputs.length} 张 · seed ${esc(outputs[0].seed)} 起</div>`;
+    <div class="stage-reroll">
+      <button class="ghost" data-reroll="body">换体型</button>
+      <button class="ghost" data-reroll="scene">换场景</button>
+      <button class="ghost" data-reroll="outfit">换服装</button>
+      <button class="ghost" data-reroll="pose">换姿势</button>
+      <button class="ghost" data-reroll="action">换动作</button>
+      <button class="ghost" data-reroll="expression">换表情</button>
+    </div>
+    <div class="stage-meta">${outputs.length} 张 · seed ${esc(outputs[0].seed)} 起${outputs[0].elapsed_s ? ' · 每张约 ' + esc(outputs[0].elapsed_s) + 's' : ''}</div>`;
   $('#stageActions').dataset.prompt = outputs[0].prompt || '';
 }
 
 function renderStage(o) {
   const stage = $('#stage');
   const url = shotUrl(o);
+  const list = (state.results && state.results.length ? state.results : [o]).map(shotUrl).filter(Boolean);
+  const r = outputRating(o);
   stage.className = 'stage';
   stage.innerHTML = url
     ? `<img src="${esc(url)}" alt="" title="点击打开原图" />`
     : '<div class="stage-empty"><b>图在 ComfyUI 输出目录</b></div>';
   const img = $('img', stage);
-  if (img) img.addEventListener('click', () => openImageViewer(url));
+  if (img) {
+    img.addEventListener('click', () => openImageViewer(url, list));
+    img.addEventListener('error', () => {
+      /* 图还没加载完就被下一批覆盖了：别把新内容清掉 */
+      if (!stage.contains(img)) return;
+      stage.innerHTML = '<div class="stage-empty"><b>图不在了</b><span>被删了，或者还留在 ComfyUI 的 output 里。</span></div>';
+    });
+  }
   $('#stageActions').innerHTML = `
     <div class="vote">
-      <button class="ghost" data-act="keep">保留</button>
-      <button class="ghost" data-act="drop">丢弃</button>
+      <button class="ghost ${r === 1 ? 'on' : ''}" data-act="keep">保留</button>
+      <button class="ghost ${r === -1 ? 'on' : ''}" data-act="drop">丢弃</button>
     </div>
     <div class="stage-actions">
       <button class="primary" data-act="again">再来一张</button>
@@ -4608,7 +4800,7 @@ function renderStage(o) {
       <button class="ghost" data-reroll="action">换动作</button>
       <button class="ghost" data-reroll="expression">换表情</button>
     </div>
-    <div class="stage-meta">seed ${esc(o.seed)} · ${esc(o.elapsed_s || '')}s</div>`;
+    <div class="stage-meta">seed ${esc(o.seed)}${o.elapsed_s ? ' · ' + esc(o.elapsed_s) + 's' : ''}</div>`;
   $('#stageActions').dataset.prompt = o.prompt || '';
 }
 
@@ -5229,7 +5421,7 @@ function renderExpertOutputs(outputs) {
   $$('#expStage .sg').forEach((el) => {
     const o = outputs[Number(el.dataset.idx)];
     const img = $('.sg-img', el);
-    if (img) img.onclick = () => { if (img.dataset.url) openImageViewer(img.dataset.url); };
+    if (img) img.onclick = () => { if (img.dataset.url) openImageViewer(img.dataset.url, outputs.map(shotUrl).filter(Boolean)); };
     $$('[data-gact]', el).forEach((b) => {
       b.onclick = async (e) => {
         e.stopPropagation();
@@ -5328,15 +5520,15 @@ function historyRating(o) {
 }
 
 async function clearHistoryWall() {
-  if (!state.history.length) { toast('本来就是空的'); return; }
-  if (!confirm('清空「本次结果」列表？\n图还留在磁盘上，只是不再显示在这里。')) return;
-  try { await api('/api/history', { method: 'DELETE' }); } catch { /* 本地也照样清 */ }
+  const had = state.history.length > 0;
+  /* 不弹确认：记录清空不动磁盘图，点了就直接清 */
   state.history = [];
   renderHistory();
   const stage = $('#stage');
   if (stage) { stage.className = 'stage'; stage.innerHTML = '<div class="stage-empty"><b>还没有出图</b></div>'; }
   if ($('#stageActions')) $('#stageActions').innerHTML = '';
-  toast('已清空本次结果');
+  try { await api('/api/history', { method: 'DELETE' }); } catch { /* 本地也照样清 */ }
+  toast(had ? '已清空本次结果' : '已清空残留记录');
 }
 
 function renderHistory() {
@@ -5349,14 +5541,17 @@ function renderHistory() {
     const o = h.o;
     const url = shotUrl(o);
     const r = historyRating(o);
+    const tip = ['seed ' + o.seed, o.elapsed_s ? o.elapsed_s + 's' : '', (o.twoPass || (h.spec && h.spec.body && h.spec.body.twoPass && h.spec.body.twoPass.enable)) ? '两段' : '']
+      .filter(Boolean).join(' · ');
+    const canAgain = !!(h.spec && h.spec.body);
     return `<div class="hcard" data-hidx="${i}">
-      <div class="hp" data-hopen="${esc(url)}">${url ? `<img loading="lazy" src="${esc(url)}" alt="" onerror="this.style.display='none';this.parentElement.classList.add('noimg')" />` : ''}</div>
-      <div class="hm"><span>seed ${esc(o.seed)}</span><span>${o.twoPass || h.spec?.body?.twoPass?.enable ? '两段' : ''}</span></div>
+      <div class="hp" data-hopen="${esc(url)}" title="${esc(tip)}">${url ? `<img loading="lazy" src="${esc(url)}" alt="" onerror="this.style.display='none';this.parentElement.classList.add('noimg')" />` : ''}</div>
+      <div class="hm"><span>seed ${esc(o.seed)}</span><span>${o.twoPass || (h.spec && h.spec.body && h.spec.body.twoPass && h.spec.body.twoPass.enable) ? '两段' : ''}</span></div>
       <div class="ha">
         <button class="ghost ${r === 1 ? 'on' : ''}" data-hact="keep">保留</button>
         <button class="ghost ${r === -1 ? 'on' : ''}" data-hact="drop">丢弃</button>
-        <button class="ghost" data-hact="again">再出</button>
-        ${h.spec && h.spec.body ? '<button class="ghost" data-hact="seed">同 seed</button>' : ''}
+        ${canAgain ? '<button class="ghost" data-hact="again">再出</button>' : ''}
+        ${canAgain ? '<button class="ghost" data-hact="seed">同 seed</button>' : ''}
       </div>
     </div>`;
   }).join('');
@@ -5366,7 +5561,11 @@ async function loadHistory() {
   try {
     const r = await api('/api/history?limit=24');
     const rows = r.items || [];
-    if (!rows.length) return;
+    if (!rows.length) {
+      state.history = [];
+      renderHistory();
+      return;
+    }
     const items = rows.map((h) => ({
       o: {
         out: h.out, file: h.file, subfolder: h.subfolder, seed: h.seed,
@@ -5946,17 +6145,48 @@ function renderDetail(row) {
       <input id="previewFile" type="file" accept="image/*" hidden />
     </div>`;
   $('#useChar').onclick = () => {
-    state.char = {
+    /* 按分类送到对应的槽：服装进服装支、辅助进 LoRA 槽，别一律当角色挂 */
+    const cat = String(row.category || '');
+    const item = {
       id: row.id,
       rel_path: row.rel_path,
       name: row.name_zh || row.name,
+      name_zh: row.name_zh || '',
       weight: row.weight,
       trigger: row.trigger,
       feature_words: row.feature_words,
+      outfit_words: row.outfit_words,
       negative: row.negative,
     };
     $('#detail').classList.add('hidden');
     switchPage('create');
+    if (/服装/.test(cat)) {
+      state.outfitLora = item;
+      state.outfit = 'LORA';
+      renderSix();
+      if ($('#createHint')) $('#createHint').textContent = `服装支：${item.name}`;
+      chooseLoraVariant(state.outfitLora, 'outfitLora');
+      return;
+    }
+    if (/辅助/.test(cat)) {
+      if (state.auxLoras.some((x) => x && x.rel_path === item.rel_path)) {
+        toast('这支已经在 LoRA 槽里了');
+        renderSix();
+        return;
+      }
+      if (state.auxLoras.length >= 8) {
+        toast('LoRA 槽最多 8 支，先删一支', true);
+        renderSix();
+        return;
+      }
+      state.auxLoras.push(item);
+      state.auxIndex = state.auxLoras.length - 1;
+      renderSix();
+      if ($('#createHint')) $('#createHint').textContent = `辅助支：${item.name}`;
+      chooseLoraVariant(item, 'auxSlot');
+      return;
+    }
+    state.char = item;
     renderChars();
     if ($('#createHint')) $('#createHint').textContent = `角色：${state.char.name}`;
     chooseLoraVariant(state.char, 'char');
@@ -6131,7 +6361,7 @@ async function searchRecords(q) {
       </div>
     </article>`).join('') : '<div class="skeleton">没有匹配的记录。</div>';
     $$('.record .rp', box).forEach((el) => {
-      el.onclick = () => openImageViewer(el.dataset.full);
+      el.onclick = () => openImageViewer(el.dataset.full, $$('.record .rp', box).map((x) => x.dataset.full).filter(Boolean));
     });
   } catch (e) {
     box.innerHTML = `<div class="skeleton">查记录失败：${esc(e.message)}</div>`;
@@ -6141,7 +6371,7 @@ async function searchRecords(q) {
 /* ---------------- 图库（出图目录） ---------------- */
 
 const GAL_PAGE = 60;
-const gal = { q: '', sort: 'new', kind: 'output', offset: 0, total: 0, items: [], selected: new Set(), picking: false, loading: false, bound: false, root: '' };
+const gal = { q: '', sort: 'new', kind: 'output', offset: 0, total: 0, items: [], selected: new Set(), picking: false, seq: 0, bound: false, root: '' };
 
 function galUrl(item) {
   return '/api/localfile?path=' + encodeURIComponent(item.path);
@@ -6172,30 +6402,48 @@ function renderGallery() {
   if ($('#galMore')) $('#galMore').classList.toggle('hidden', gal.items.length >= gal.total);
   if ($('#galDelete')) {
     $('#galDelete').classList.toggle('hidden', !gal.picking || !gal.selected.size);
-    $('#galDelete').textContent = gal.selected.size ? `删除选中（${gal.selected.size}）` : '删除选中';
+    $('#galDelete').textContent = gal.selected.size
+      ? (isEnName() ? `Delete ${gal.selected.size}` : `删除选中（${gal.selected.size}）`)
+      : (isEnName() ? 'Delete selected' : '删除选中');
   }
-  if ($('#galSelectMode')) $('#galSelectMode').textContent = gal.picking ? '退出选择' : '选择';
+  if ($('#galMove')) {
+    $('#galMove').classList.toggle('hidden', !gal.picking || !gal.selected.size);
+    $('#galMove').textContent = gal.selected.size
+      ? (isEnName() ? `Move… (${gal.selected.size})` : `移到…（${gal.selected.size}）`)
+      : (isEnName() ? 'Move…' : '移到…');
+  }
+  if ($('#galSelectMode')) {
+    $('#galSelectMode').textContent = gal.picking
+      ? (isEnName() ? 'Done' : '退出选择')
+      : (isEnName() ? 'Select' : '选择');
+  }
 }
 
 async function loadGallery(reset = true) {
-  if (gal.loading) return;
-  gal.loading = true;
+  /* 用请求序号代替 loading 锁：切目录 / 换排序时上一次还没回来也能立刻重发，
+     回来的旧响应直接丢掉，不会把新结果盖掉（以前会卡在旧目录上） */
+  const seq = ++gal.seq;
   if (reset) { gal.offset = 0; gal.items = []; }
+  const kind = gal.kind;
+  const sort = gal.sort;
+  const q = gal.q;
+  const offset = gal.offset;
   try {
-    const r = await api(`/api/gallery?root=${gal.kind}&limit=${GAL_PAGE}&offset=${gal.offset}&sort=${gal.sort}&q=${encodeURIComponent(gal.q)}`);
+    const r = await api(`/api/gallery?root=${kind}&limit=${GAL_PAGE}&offset=${offset}&sort=${sort}&q=${encodeURIComponent(q)}`);
+    if (seq !== gal.seq) return;
     gal.root = r.root || '';
     gal.total = Number(r.total) || 0;
     const items = r.items || [];
     gal.items = reset ? items : gal.items.concat(items);
-    gal.offset += items.length;
+    gal.offset = offset + items.length;
     /* 选中的图如果被删了/换页了，从选中集合里剔掉 */
     const alive = new Set(gal.items.map((x) => x.rel));
     for (const n of [...gal.selected]) if (!alive.has(n)) gal.selected.delete(n);
   } catch (e) {
+    if (seq !== gal.seq) return;
     toast((isEnName() ? 'Failed to load gallery: ' : '读图库失败：') + e.message, true);
     gal.items = [];
   }
-  gal.loading = false;
   renderGallery();
 }
 
@@ -6216,6 +6464,71 @@ async function deleteSelectedImages() {
   }
 }
 
+/* 移动 / 整理：搬到成品区、出图目录或某个子文件夹；填新名字就是新建 */
+function galKindLabel(kind) {
+  return kind === 'samples'
+    ? (isEnName() ? 'Samples' : '成品区')
+    : (isEnName() ? 'Output folder' : '出图目录');
+}
+
+async function loadGalleryDirs(kind) {
+  const list = $('#galDirList');
+  if (!list) return;
+  list.innerHTML = '';
+  try {
+    const r = await api(`/api/gallery/dirs?root=${kind}`);
+    list.innerHTML = (r.dirs || [])
+      .map((d) => `<option value="${esc(d.rel)}">${esc(d.rel)}${d.count ? ' · ' + d.count : ''}</option>`)
+      .join('');
+  } catch {
+    /* 目录列不出来就不给建议，手填照样能搬 */
+  }
+}
+
+function openGalleryMove() {
+  if (!gal.selected.size) return;
+  const box = $('#galMoveModal');
+  if (!box) return;
+  const to = gal.kind === 'samples' ? 'output' : 'samples';
+  $('#galMoveTo').value = to;
+  $('#galMoveTarget').value = '';
+  $('#galMoveHint').textContent = isEnName()
+    ? `Moving ${gal.selected.size} image(s) out of ${galKindLabel(gal.kind)}. Blank folder = root; a new name creates it.`
+    : `把 ${gal.selected.size} 张图从「${galKindLabel(gal.kind)}」搬走。文件夹留空 = 根目录；写个新名字就是新建。`;
+  box.classList.remove('hidden');
+  loadGalleryDirs(to);
+  setTimeout(() => { const t = $('#galMoveTarget'); if (t) { t.focus(); t.select(); } }, 30);
+}
+
+async function doGalleryMove() {
+  const names = [...gal.selected];
+  if (!names.length) return;
+  const to = $('#galMoveTo').value === 'output' ? 'output' : 'samples';
+  const target = String($('#galMoveTarget').value || '').trim();
+  const btn = $('#galMoveOk');
+  const label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = isEnName() ? 'Moving…' : '搬着…'; }
+  try {
+    const r = await write('/api/gallery/move', { root: gal.kind, to, names, target });
+    $('#galMoveModal').classList.add('hidden');
+    gal.selected.clear();
+    gal.picking = false;
+    const errs = r.errors || [];
+    const where = galKindLabel(to) + (r.target ? ' / ' + r.target : '');
+    if (!r.moved && errs.length) {
+      toast((isEnName() ? 'Move failed: ' : '没搬成：') + errs[0], true);
+    } else {
+      toast((isEnName()
+        ? `Moved ${r.moved || 0} → ${where}`
+        : `搬了 ${r.moved || 0} 张 → ${where}`) + (errs.length ? (isEnName() ? `, ${errs.length} skipped` : `，${errs.length} 个没搬`) : ''));
+    }
+    await loadGallery(true);
+  } catch (e) {
+    toast((isEnName() ? 'Move failed: ' : '移动失败：') + e.message, true);
+  }
+  if (btn) { btn.disabled = false; btn.textContent = label; }
+}
+
 function initGallery() {
   if (gal.bound) return;
   gal.bound = true;
@@ -6233,6 +6546,16 @@ function initGallery() {
     };
   }
   if ($('#galDelete')) $('#galDelete').onclick = deleteSelectedImages;
+  if ($('#galMove')) $('#galMove').onclick = openGalleryMove;
+  if ($('#galMoveOk')) $('#galMoveOk').onclick = doGalleryMove;
+  if ($('#galMoveCancel')) $('#galMoveCancel').onclick = () => $('#galMoveModal').classList.add('hidden');
+  if ($('#galMoveTarget')) $('#galMoveTarget').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); doGalleryMove(); } };
+  if ($('#galMoveTo')) {
+    $('#galMoveTo').onchange = () => loadGalleryDirs($('#galMoveTo').value === 'output' ? 'output' : 'samples');
+  }
+  if ($('#galMoveModal')) {
+    $('#galMoveModal').onclick = (e) => { if (e.target.id === 'galMoveModal') $('#galMoveModal').classList.add('hidden'); };
+  }
   if ($('#galGrid')) {
     $('#galGrid').onclick = (e) => {
       const card = e.target.closest('.gal-card');
@@ -6245,7 +6568,7 @@ function initGallery() {
         return;
       }
       const item = gal.items.find((x) => x.rel === rel);
-      if (item) openImageViewer(galUrl(item));
+      if (item) openImageViewer(galUrl(item), gal.items.map(galUrl));
     };
   }
 }
@@ -6580,14 +6903,13 @@ async function boot() {
   $('#randomCreate').onclick = randomAll;
   $('#sixGrid').onclick = (e) => {
     const b = e.target.closest('[data-pick]');
-    if (b) openPicker(b.dataset.pick);
-  };
-  $('#moreGrid').onclick = (e) => {
-    const b = e.target.closest('[data-pick]');
-    if (!b) return;
+    if (!b || b.disabled) return;
     if (b.dataset.pick === 'undress') { openUndressModal(); return; }
     openPicker(b.dataset.pick);
   };
+  $$('.model-tech .six-card').forEach((el) => {
+    el.onclick = () => openPicker(el.dataset.pick);
+  });
   const undressGate = $('#undressModal');
   if (undressGate) {
     $('#undressClose').onclick = closeUndressModal;
@@ -6694,6 +7016,12 @@ async function boot() {
   if (vOut) vOut.onclick = () => setViewerZoom(viewer.scale / 1.25);
   const vReset = $('#viewerReset');
   if (vReset) vReset.onclick = resetViewer;
+  const vClose = $('#viewerClose');
+  if (vClose) vClose.onclick = closeImageViewer;
+  const vPrev = $('#viewerPrev');
+  if (vPrev) vPrev.onclick = () => viewerStep(-1);
+  const vNext = $('#viewerNext');
+  if (vNext) vNext.onclick = () => viewerStep(1);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closeImageViewer(); return; }
     const gate = $('#imgViewer');
@@ -6701,6 +7029,8 @@ async function boot() {
     if (e.key === '+' || e.key === '=') setViewerZoom(viewer.scale * 1.25);
     else if (e.key === '-') setViewerZoom(viewer.scale / 1.25);
     else if (e.key === '0') resetViewer();
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); viewerStep(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); viewerStep(1); }
   });
   const pickerSearch = $('#pickerSearch');
   if (pickerSearch) {
@@ -6886,7 +7216,13 @@ async function boot() {
   };
   $('#history').onclick = (e) => {
     const open = e.target.closest('[data-hopen]');
-    if (open) { if (open.dataset.hopen) openImageViewer(open.dataset.hopen); return; }
+    if (open) {
+      if (open.dataset.hopen) {
+        const list = (state.history || []).map((h) => shotUrl(h.o)).filter(Boolean);
+        openImageViewer(open.dataset.hopen, list);
+      }
+      return;
+    }
     const b = e.target.closest('[data-hact]');
     if (!b) return;
     const card = b.closest('[data-hidx]');
@@ -7068,6 +7404,12 @@ boot();
   const desk = window.desktop;
   if (!desk || !desk.isDesktop) return;
   document.body.classList.add('desktop');
+  if (desk.isDev) {
+    document.body.classList.add('dev-build');
+    document.title = '洛栈 · 开发';
+    const brand = $('.tb-brand');
+    if (brand) brand.insertAdjacentHTML('beforeend', '<span class="tb-dev">开发</span>');
+  }
   const tb = $('#titlebar');
   if (tb) tb.classList.remove('hidden');
   const min = $('#tbMin');

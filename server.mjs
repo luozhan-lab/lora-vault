@@ -5,7 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { execFile, spawn } from 'node:child_process';
-import { loadConfig, saveConfig, ensureDirs, PUBLIC_DIR, PREVIEW_DIR, ROOT } from './lib/config.mjs';
+import { loadConfig, saveConfig, ensureDirs, PUBLIC_DIR, PREVIEW_DIR, ROOT, DATA_DIR } from './lib/config.mjs';
 import { db, logEvent } from './lib/db.mjs';
 import { backfillTriggers, setTriggers, organizeTriggers, splitTriggerEntries } from './lib/triggers.mjs';
 import { trainedWordList } from './lib/safetensors.mjs';
@@ -35,7 +35,7 @@ import { listModels, deleteModel, comfyModelNames } from './lib/models.mjs';
 import { loraRoots, absOf } from './lib/roots.mjs';
 import { genOptions, slotLoras, runGenerate, precheckGenerate } from './lib/generate.mjs';
 import { discover } from './lib/discover.mjs';
-import { listImages, deleteImages, galleryRoot } from './lib/gallery.mjs';
+import { listImages, deleteImages, galleryRoot, listDirs, moveImages } from './lib/gallery.mjs';
 import { createBackup, listBackups, BACKUP_DIR, autoBackup, KEEP as BACKUP_KEEP } from './lib/backup.mjs';
 import { listHistory, addHistory, rateHistory, clearHistory } from './lib/history.mjs';
 import { checkUpdate, downloadUpdate } from './lib/update.mjs';
@@ -738,6 +738,34 @@ async function route(req, res) {
     });
     data.items = data.items.map((it) => ({ ...it, url: `/api/localfile?path=${encodeURIComponent(it.path)}` }));
     return json(res, 200, data);
+  }
+
+  if (p === '/api/gallery/dirs' && method === 'GET') {
+    const kind = url.searchParams.get('root') === 'output' ? 'output' : 'samples';
+    try {
+      return json(res, 200, listDirs({ root: kind }));
+    } catch (e) {
+      return json(res, 400, { error: e.message });
+    }
+  }
+
+  if (p === '/api/gallery/move' && method === 'POST') {
+    if (!requireToken(req, res, url)) return;
+    const body = await readJson(req).catch(() => ({}));
+    const names = Array.isArray(body.names) ? body.names : [];
+    if (!names.length) return json(res, 400, { error: '没选要移动的图' });
+    try {
+      const out = moveImages({
+        root: body.root === 'samples' ? 'samples' : 'output',
+        to: String(body.to || ''),
+        names,
+        target: String(body.target || ''),
+      });
+      if (out.moved) logEvent('gallery_move', null, 'api', `${out.moved} -> ${out.to}/${out.target}`);
+      return json(res, 200, out);
+    } catch (e) {
+      return json(res, 400, { error: e.message });
+    }
   }
 
   if (p === '/api/gallery' && method === 'DELETE') {
@@ -1848,7 +1876,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`LoRA 库已启动  http://${HOST}:${PORT}`);
-  console.log(`数据目录       ${path.join(ROOT, 'data')}`);
+  console.log(`数据目录       ${DATA_DIR}`);
   console.log(`LoRA 根        ${loraRoots(cfg).join('；') || '(未配置)'}`);
   if (cfg.scanOnStart) {
     const t = Date.now();

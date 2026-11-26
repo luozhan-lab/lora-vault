@@ -41,3 +41,6 @@ publish/img/*.png
 
 # 落地页：部署用，不是源码。图片含界面预览，不进仓库。
 publish/
+
+# 宣传片中间素材（成片走 Release / 另传）
+promo/

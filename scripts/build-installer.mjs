@@ -203,6 +203,25 @@ static class Core
             }
             catch { }
         }
+        /* 开发版：同一个 exe 带 --dev，数据另开一份、开 CDP 9222、标题带「开发」 */
+        string[] devLinks = new string[] {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "洛栈（开发）.lnk")
+        };
+        foreach (string link in devLinks)
+        {
+            try
+            {
+                object sc = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { link });
+                Type t = sc.GetType();
+                t.InvokeMember("TargetPath", BindingFlags.SetProperty, null, sc, new object[] { exe });
+                t.InvokeMember("Arguments", BindingFlags.SetProperty, null, sc, new object[] { "--dev" });
+                t.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, sc, new object[] { dest });
+                if (File.Exists(iconPath)) t.InvokeMember("IconLocation", BindingFlags.SetProperty, null, sc, new object[] { iconPath + ",0" });
+                t.InvokeMember("Description", BindingFlags.SetProperty, null, sc, new object[] { "洛栈 开发版 — 独立数据 + 调试端口 9222" });
+                t.InvokeMember("Save", BindingFlags.InvokeMethod, null, sc, null);
+            }
+            catch { }
+        }
     }
 
     static void RegisterUninstall(string dest, string exe)
@@ -234,6 +253,7 @@ static class Core
         cmd += "taskkill /IM LoraLibrary.exe /F >nul 2>&1\r\n";
         cmd += "del \"%USERPROFILE%\\Desktop\\洛栈.lnk\" >nul 2>&1\r\n";
         cmd += "del \"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\洛栈.lnk\" >nul 2>&1\r\n";
+        cmd += "del \"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\洛栈（开发）.lnk\" >nul 2>&1\r\n";
         cmd += "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\LoRA-Library\" /f >nul 2>&1\r\n";
         cmd += "choice /M \"Also delete data (records / config / previews)?\"\r\n";
         cmd += "if errorlevel 2 goto keep\r\n";

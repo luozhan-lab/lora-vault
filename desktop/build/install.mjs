@@ -155,6 +155,20 @@ if (fs.existsSync(desktop)) {
   ].join('; ');
   try { execFileSync('powershell.exe', ['-NoProfile', '-Command', ps]); console.log('  快捷方式:', lnk); }
   catch (e) { console.log('  快捷方式失败:', e.message); }
+  /* 开发版：同一个 exe 带 --dev（独立数据 + 调试端口 9222） */
+  const devLnk = path.join(desktop, '洛栈（开发）.lnk');
+  const psDev = [
+    '$ws = New-Object -ComObject WScript.Shell',
+    `$s = $ws.CreateShortcut('${devLnk.replaceAll("'", "''")}')`,
+    `$s.TargetPath = '${exePath.replaceAll("'", "''")}'`,
+    `$s.Arguments = '--dev'`,
+    `$s.WorkingDirectory = '${installRoot.replaceAll("'", "''")}'`,
+    `$s.IconLocation = '${icoPath.replaceAll("'", "''")},0'`,
+    "$s.Description = '洛栈 开发版 — 独立数据 + 调试端口 9222'",
+    '$s.Save()',
+  ].join('; ');
+  try { execFileSync('powershell.exe', ['-NoProfile', '-Command', psDev]); console.log('  开发版快捷方式:', devLnk); }
+  catch (e) { console.log('  开发版快捷方式失败:', e.message); }
 }
 }
 

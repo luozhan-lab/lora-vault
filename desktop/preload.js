@@ -4,6 +4,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktop', {
   isDesktop: true,
+  /* 开发版（--dev）时主进程会带 --loradev 参数；前端据此显示「开发」徽标 */
+  isDev: process.argv.includes('--loradev'),
   info: () => ipcRenderer.invoke('app:info'),
   openDataDir: () => ipcRenderer.invoke('app:open-data'),
   openLoraDir: () => ipcRenderer.invoke('app:open-loras'),

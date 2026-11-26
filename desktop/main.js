@@ -6,12 +6,28 @@ const fs = require('node:fs');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
 
+/* 开发版：同一个 exe 加 --dev（或设 LORA_DEV=1）。
+   正式版：调试端口不开、数据在 %APPDATA%\LoRA 库、端口 8787。
+   开发版：userData 另开一份（%APPDATA%\洛栈（开发））、端口 8788、自动开 CDP 9222。 */
+const DEV = process.argv.includes('--dev') || process.env.LORA_DEV === '1';
+
 /* 改名后 productName 从「LoRA 库」变成「洛栈 LoRA-Vault」，Electron 的 userData 会跟着换目录，
    老用户的窗口状态 / 语言 / localStorage / data 就变成"丢了"。老目录在就继续用它。 */
 try {
-  const legacyUserData = path.join(app.getPath('appData'), 'LoRA 库');
-  if (fs.existsSync(legacyUserData)) app.setPath('userData', legacyUserData);
+  if (DEV) {
+    const devDir = path.join(app.getPath('appData'), '洛栈（开发）');
+    fs.mkdirSync(devDir, { recursive: true });
+    app.setPath('userData', devDir);
+  } else {
+    const legacyUserData = path.join(app.getPath('appData'), 'LoRA 库');
+    if (fs.existsSync(legacyUserData)) app.setPath('userData', legacyUserData);
+  }
 } catch { /* ignore */ }
+
+/* 开发版默认开调试端口（CDP / DevTools 用），可用 --remote-debugging-port=xxxx 覆盖 */
+if (DEV && !app.commandLine.hasSwitch('remote-debugging-port')) {
+  app.commandLine.appendSwitch('remote-debugging-port', '9222');
+}
 
 // Cloudflare 会拦 Electron 的 UA，装成普通 Chrome
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -19,8 +35,9 @@ app.userAgentFallback = BROWSER_UA;
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
 
 const HOST = '127.0.0.1';
-const PORT = 8787;
-const APP_TITLE = '洛栈 · LoRA-Vault';
+const PORT = DEV ? 8789 : 8787;
+const APP_TITLE = DEV ? '洛栈 · 开发' : '洛栈 · LoRA-Vault';
+const DEV_TAG = DEV ? '\n模式：开发版（--dev）' : '';
 
 let win = null;
 let backend = null;
@@ -121,8 +138,18 @@ function log(line) {
 function ping() {
   return new Promise((resolve) => {
     const req = http.get({ host: HOST, port: PORT, path: '/api/health', timeout: 1200 }, (res) => {
-      res.resume();
-      resolve(res.statusCode === 200);
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (d) => { if (body.length < 4096) body += d; });
+      res.on('end', () => {
+        /* 端口上可能是别的东西（200 但不是一个洛栈后端）：只认 /api/health 的 JSON */
+        try {
+          const j = JSON.parse(body);
+          resolve(!!j && j.ok === true);
+        } catch {
+          resolve(false);
+        }
+      });
     });
     req.on('error', () => resolve(false));
     req.on('timeout', () => { req.destroy(); resolve(false); });
@@ -157,7 +184,7 @@ async function ensureBackend() {
   const node = resolveNode(backendRoot);
   log(`启动后端: ${node} server.mjs  cwd=${backendRoot}`);
 
-  backend = spawn(node, ['server.mjs'], {
+  backend = spawn(node, ['server.mjs', ...(DEV ? ['--port', String(PORT)] : [])], {
     cwd: backendRoot,
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -337,6 +364,7 @@ function createWindow() {
       nodeIntegration: false,
       webviewTag: true,
       spellcheck: false,
+      additionalArguments: DEV ? ['--loradev'] : [],
     },
   });
 
@@ -460,8 +488,8 @@ function buildMenu() {
           click: () => dialog.showMessageBox(win, {
             type: 'info',
             title: '关于',
-            message: '洛栈 · LoRA-Vault ' + app.getVersion(),
-            detail: `后端目录：${backendRoot || '(未找到)'}\n地址：http://${HOST}:${PORT}\nElectron ${process.versions.electron} · Node ${process.versions.node}\n许可：保留所有权利（LICENSE.txt）`,
+            message: '洛栈 · LoRA-Vault ' + app.getVersion() + (DEV ? ' · 开发版' : ''),
+            detail: `后端目录：${backendRoot || '(未找到)'}\n地址：http://${HOST}:${PORT}\nElectron ${process.versions.electron} · Node ${process.versions.node}\n许可：保留所有权利（LICENSE.txt）${DEV_TAG}`,
             buttons: ['好'],
           }),
         },
@@ -483,6 +511,8 @@ ipcMain.handle('app:info', () => ({
   version: app.getVersion(),
   backend: backendRoot,
   port: PORT,
+  dev: DEV,
+  debugPort: DEV ? 9222 : 0,
   node: process.versions.node,
   electron: process.versions.electron,
 }));
@@ -515,8 +545,8 @@ ipcMain.handle('app:open-log', () => openPath(logFile()));
 ipcMain.handle('app:about', () => dialog.showMessageBox(win, {
   type: 'info',
   title: '关于',
-  message: '洛栈 · LoRA-Vault ' + app.getVersion(),
-  detail: `后端目录：${backendRoot || '(未找到)'}\n地址：http://${HOST}:${PORT}\nElectron ${process.versions.electron} · Node ${process.versions.node}\n许可：保留所有权利（LICENSE.txt）`,
+  message: '洛栈 · LoRA-Vault ' + app.getVersion() + (DEV ? ' · 开发版' : ''),
+  detail: `后端目录：${backendRoot || '(未找到)'}\n地址：http://${HOST}:${PORT}\nElectron ${process.versions.electron} · Node ${process.versions.node}\n许可：保留所有权利（LICENSE.txt）${DEV_TAG}`,
   buttons: ['好'],
 }));
 ipcMain.on('win:minimize', () => { if (win) win.minimize(); });
@@ -533,7 +563,10 @@ ipcMain.handle('view:devtools', () => { if (win) win.webContents.toggleDevTools(
 
 /* ---------------------------- 启动 ---------------------------- */
 
-if (!app.requestSingleInstanceLock()) {
+/* 开发版不参与单实例锁：正式版照旧拿锁，开发版和正式版可以同时开
+   （Electron 的锁不是按 userData 区分的，见过开发版一开就把正式版顶掉的坑） */
+const gotLock = DEV ? true : app.requestSingleInstanceLock();
+if (!gotLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
