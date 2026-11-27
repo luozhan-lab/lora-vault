@@ -540,6 +540,7 @@ async function route(req, res) {
       }
     }
     if (typeof body.civitaiToken === 'string') next.civitaiToken = body.civitaiToken.trim();
+  if (typeof body.proxy === 'string') next.proxy = body.proxy.trim();
     if (body.downloadConcurrency !== undefined) {
       const n = Number(body.downloadConcurrency);
       if (Number.isFinite(n)) next.downloadConcurrency = Math.max(1, Math.min(8, Math.round(n)));

@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>洛栈 · LoRA-Vault</title>
 <link rel="icon" type="image/svg+xml" href="/v2/icon.svg?v=20261124icon">
-<link rel="stylesheet" href="/v2/app.css?v=202611270043">
+<link rel="stylesheet" href="/v2/app.css?v=202611271554">
 </head>
 <body>
 <div id="titlebar" class="titlebar hidden">
@@ -356,6 +356,8 @@
                   <button class="six-card" data-pick="pose"><span>姿势</span><b id="sixPose">随机</b></button>
                   <button class="six-card" data-pick="action"><span>动作</span><b id="sixAction">随机</b></button>
                   <button class="six-card hidden" data-pick="duoRole" id="moreDuoRoleRow"><span>双人主动</span><b id="moreDuoRole">自动</b></button>
+                  <button class="six-card adult-only hidden" data-pick="stage" id="moreStageRow"><span>阶段</span><b id="moreStage">自动</b></button>
+                  <button class="six-card" data-pick="landing" id="moreLandingRow"><span>落点</span><b id="moreLanding">不选</b></button>
                 </div>
               </div>
               <div class="layer-block">
@@ -696,6 +698,7 @@
           <div class="panel">
             <div class="stephead"><div><span class="num">D</span><h2>Civitai</h2></div></div>
             <label class="field"><span>API Key（下载/NSFW 需要时填）</span><input id="cfgCivToken" placeholder="Civitai → Account settings → API Keys"></label>
+            <label class="field"><span>代理地址（C站要挂代理；留空用系统代理）</span><input id="cfgProxy" placeholder="例如 http://127.0.0.1:7890"></label>
             <p class="hint">下载时自动拉取：触发词、特征词、底模、预览图、下载页和作者信息。</p>
           </div>
           <div class="panel">
@@ -1127,7 +1130,7 @@ https://civitai.com/models/yyyyy"></textarea></label>
 </div>
 
 <script src="/v2/i18n.js?v=202611261620"></script>
-<script src="/v2/app.js?v=202611270043"></script>
+<script src="/v2/app.js?v=202611271554"></script>
 
 
 </body></html>
